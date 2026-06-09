@@ -1,38 +1,467 @@
-.App {
+@import url('https://fonts.googleapis.com/css2?family=Fredoka:wght@300..700&family=Lilita+One&display=swap');
+
+body {
+  font-family: 'Fredoka', "Segoe UI", sans-serif;
+  background: hsl(45, 50%, 96%); /* Varm tegneserie-papir farge */
+  margin: 0;
+  color: #1e293b;
+}
+
+/* OVERHEAD TITTEL FOR HELE APPLIKASJONEN (valgfri) */
+h1, h2, h3, h4 {
+  font-family: 'Lilita One', cursive;
+  letter-spacing: 0.5px;
+  color: #1e293b;
+  text-shadow: 1px 1px 0px white, 2px 2px 0px rgba(0,0,0,0.15);
+}
+
+/* LAYOUT */
+.app {
+  display: flex;
+  gap: 40px;
+  padding: 40px;
+  align-items: flex-start;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+/* HANDLELISTE PANEL */
+.panel {
+  background: white;
+  border: 3px solid #1e293b;
+  border-radius: 24px;
+  padding: 24px;
+  width: 320px;
+  box-shadow: 6px 6px 0 #1e293b;
+  box-sizing: border-box;
+  position: relative;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.panel:hover {
+  transform: translateY(-2px);
+  box-shadow: 8px 8px 0 #1e293b;
+}
+
+.panel h2 {
+  margin-top: 0;
+  font-size: 26px;
+  color: hsl(215, 90%, 50%); /* Temablå */
+  text-align: center;
+  border-bottom: 3px dashed #1e293b;
+  padding-bottom: 10px;
+  margin-bottom: 20px;
+}
+
+/* RAD MED INPUTS */
+.row {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 12px;
+  align-items: center;
+}
+
+/* INPUT FELTER */
+input {
+  font-family: 'Fredoka', sans-serif;
+  border: 3px solid #1e293b;
+  border-radius: 12px;
+  padding: 8px 12px;
+  box-sizing: border-box;
+  font-size: 15px;
+  width: 100%;
+  background: #fff;
+  transition: all 0.2s ease;
+}
+
+input:focus {
+  outline: none;
+  border-color: hsl(215, 90%, 50%); /* Temablå */
+  box-shadow: 3px 3px 0 #1e293b;
+}
+
+/* Rad-inputs spesifikt */
+.row input {
+  width: auto;
+  min-width: 0;
+}
+
+/* 70% tekstfelt */
+.itemNameInput {
+  flex: 3;
+}
+
+/* 30% prisfelt */
+.itemPriceInput {
+  flex: 1.2;
+  text-align: center;
+  font-weight: bold;
+  color: #1e293b;
+  background-color: hsl(45, 100%, 96%);
+}
+
+/* KNAPPER */
+button {
+  font-family: 'Lilita One', cursive;
+  font-size: 15px;
+  border: 3px solid #1e293b;
+  border-radius: 14px;
+  padding: 8px 16px;
+  cursor: pointer;
+  background: hsl(45, 100%, 52%); /* Temagul */
+  color: #1e293b;
+  box-shadow: 3px 3px 0 #1e293b;
+  transition: transform 0.1s ease, box-shadow 0.1s ease, background-color 0.2s ease;
+}
+
+button:hover {
+  background: hsl(45, 100%, 58%);
+  transform: translate(-2px, -2px);
+  box-shadow: 5px 5px 0 #1e293b;
+}
+
+button:active {
+  transform: translate(2px, 2px);
+  box-shadow: 1px 1px 0 #1e293b;
+}
+
+/* PRIMARY KNAPP (Kjøp/Frem) */
+.primaryBtn {
+  background: hsl(140, 70%, 48%); /* Temagrønn */
+  color: white;
+  text-shadow: 1px 1px 0 #1e293b;
+}
+
+.primaryBtn:hover {
+  background: hsl(140, 70%, 53%);
+}
+
+/* EKSTRA LEGG TIL KNAPP */
+button[onClick*="addToCart"] {
+  width: 100%;
+  margin-top: 4px;
+  margin-bottom: 16px;
+  background: hsl(15, 95%, 60%); /* Rød/oransje */
+  color: white;
+  font-size: 16px;
+  text-shadow: 1px 1px 0 #1e293b;
+}
+
+button[onClick*="addToCart"]:hover {
+  background: hsl(15, 95%, 65%);
+}
+
+/* HANDLELISTE NAV UTVALG */
+.navButtons {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 20px;
+  gap: 10px;
+}
+
+.navButtons button {
+  flex: 1;
+}
+
+/* BUDSJETT INNLEGGING */
+.budgetInput {
+  margin-bottom: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  background: hsl(195, 100%, 94%);
+  border: 3px solid #1e293b;
+  border-radius: 16px;
+  padding: 12px;
+}
+
+.budgetInput label {
+  font-family: 'Lilita One', sans-serif;
+  font-size: 14px;
+  color: #1e293b;
   text-align: center;
 }
 
-.App-logo {
-  height: 40vmin;
+.budgetInput div {
+  display: flex;
+  gap: 8px;
+}
+
+.budgetInput input {
+  flex: 2;
+}
+
+.budgetInput button {
+  flex: 1;
+  padding: 6px 12px;
+}
+
+/* SEKKER / UKESBINGER */
+.bags {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  column-gap: 110px;
+  row-gap: 24px;
+  flex: 1;
+  padding-right: 90px;
+}
+
+/* ENKELT SEKK KORT */
+.bagCard {
+  background: white;
+  border: 3px solid #1e293b;
+  border-radius: 24px;
+  text-align: center;
+  padding: 24px 20px;
+  min-width: 190px;
+  box-shadow: 6px 6px 0 #1e293b;
+  box-sizing: border-box;
+  position: relative;
+  transition: transform 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275), box-shadow 0.2s ease, background 0.3s ease;
+  background-size: 12px 12px, 100% 100%;
+}
+
+.bagCard:hover {
+  transform: translateY(-6px) scale(1.03);
+  box-shadow: 10px 10px 0 #1e293b;
+}
+
+.bagCard h3 {
+  margin-top: 0;
+  margin-bottom: 12px;
+  font-size: 22px;
+  color: #1e293b;
+}
+
+/* UKEDAG TIKK-INDIKATORER PÅ KORTET */
+.card-ticks {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 100%; /* Plasserer containeren rett utenfor høyre ytterkant */
+  width: 80px;
   pointer-events: none;
 }
 
-@media (prefers-reduced-motion: no-preference) {
-  .App-logo {
-    animation: App-logo-spin infinite 20s linear;
-  }
+.tick-mark {
+  position: absolute;
+  left: 0; /* Starter helt inntil kanten av kortet */
+  display: flex;
+  align-items: center;
+  transform: translateY(-50%); /* Sørger for at streken er sentrert på linjen */
 }
 
-.App-header {
-  background-color: #282c34;
-  min-height: 100vh;
+.tick-line {
+  width: 14px;
+  height: 3px;
+  background-color: #1e293b;
+  flex-shrink: 0;
+}
+
+.tick-label {
+  font-family: 'Fredoka', sans-serif;
+  font-size: 13px;
+  font-weight: 600;
+  color: #1e293b;
+  margin-left: 8px;
+  white-space: nowrap;
+}
+
+/* STRIPER / NETTLINJER OVER KORTET */
+.card-grid-lines {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  pointer-events: none;
+  z-index: 0;
+  overflow: hidden; /* Sørger for at linjene holder seg innenfor kortets hjørner */
+  border-radius: 20px; /* Tilpasset på innsiden av kortets 24px ramme */
+}
+
+.grid-line {
+  position: absolute;
+  left: 0;
+  right: 0;
+  border-bottom: 2px dashed rgba(30, 41, 59, 0.28); /* Mer synlig stiplet linje */
+  height: 0;
+  transform: translateY(-50%);
+}
+
+/* Plasser innholdet på ukeskortet foran linjene */
+.bagCard h3,
+.bagCard img,
+.bagCard .amount,
+.bagCard .adjust,
+.bagCard .transferBtn {
+  position: relative;
+  z-index: 1;
+}
+
+/* BELØP I BINGEN */
+.amount {
+  margin-top: 12px;
+  font-size: 20px;
+  font-family: 'Lilita One', cursive;
+  color: #1e293b;
+  background: hsl(45, 100%, 90%);
+  border: 2px solid #1e293b;
+  padding: 4px 8px;
+  border-radius: 10px;
+  display: inline-block;
+}
+
+/* +/- REGULERING */
+.adjust {
+  margin-top: 14px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 6px;
+}
+
+.adjust input {
+  width: 65px;
+  text-align: center;
+  font-weight: bold;
+  font-size: 15px;
+  padding: 4px;
+  border-radius: 8px;
+}
+
+.adjust button {
+  padding: 4px 10px;
+  font-size: 16px;
+  border-radius: 8px;
+}
+
+/* OVERFØRINGSKNAPP */
+.transferBtn {
+  margin-top: 14px;
+  background: hsl(215, 90%, 50%); /* Temablå */
+  color: white;
+  font-size: 12px;
+  padding: 8px 10px;
+  border-radius: 12px;
+  width: 100%;
+  text-shadow: 1px 1px 0 #1e293b;
+}
+
+.transferBtn:hover {
+  background: hsl(215, 90%, 55%);
+}
+
+/* LISTE OVER LAGT TIL ELEMENTER */
+.addedItemsList {
   display: flex;
   flex-direction: column;
+  gap: 6px;
+  margin: 12px 0;
+  max-height: 180px;
+  overflow-y: auto;
+  padding-right: 4px;
+  border: 2px dashed #1e293b;
+  border-radius: 12px;
+  padding: 8px;
+  background: hsl(0, 0%, 98%);
+}
+
+.addedItemRow {
+  display: flex;
+  justify-content: space-between;
   align-items: center;
-  justify-content: center;
-  font-size: calc(10px + 2vmin);
+  background: white;
+  border: 2px solid #1e293b;
+  padding: 6px 10px;
+  border-radius: 10px;
+  font-size: 14px;
+  font-weight: bold;
+}
+
+.itemName {
+  color: #1e293b;
+  text-align: left;
+}
+
+.itemPrice {
+  color: hsl(140, 70%, 35%);
+  margin-right: 6px;
+}
+
+.removeItemBtn {
+  background: transparent;
+  color: #94a3b8;
+  font-size: 18px;
+  padding: 0 4px;
+  border: none;
+  box-shadow: none;
+}
+
+.removeItemBtn:hover {
+  background: hsl(0, 100%, 92%);
+  color: hsl(0, 100%, 45%);
+  transform: scale(1.2);
+  box-shadow: none;
+}
+
+/* HJELPETEKST */
+.emptyListText {
+  color: #64748b;
+  font-size: 13px;
+  text-align: center;
+  margin: 10px 0;
+  font-style: italic;
+}
+
+/* TOTAL SUM VISNING - plain tekst, ikke knapp */
+.totalDisplay {
+  font-family: 'Lilita One', cursive;
+  font-size: 18px;
+  color: #1e293b;
+  text-align: center;
+  margin: 10px 0 4px;
+  padding: 4px 0;
+  letter-spacing: 0.3px;
+}
+
+/* UNDER-OVERSKRIFTER */
+h3 {
+  margin-bottom: 8px;
+}
+
+/* RESPONSIVE */
+@media (max-width: 900px) {
+  .app {
+    flex-direction: column;
+    align-items: center;
+  }
+
+  .bags {
+    grid-template-columns: repeat(2, 1fr);
+    width: 100%;
+    max-width: 500px;
+  }
+}
+
+@media (max-width: 500px) {
+  .bags {
+    grid-template-columns: 1fr;
+    width: 100%;
+  }
+}
+
+/* START PÅ NYTT / NULLSTILL KNAPP */
+.resetBtn {
+  background: hsl(0, 75%, 60%); /* Rød farefarge */
   color: white;
+  text-shadow: 1px 1px 0 #1e293b;
+  width: 100%;
+  margin-top: 16px;
+  font-size: 15px;
 }
 
-.App-link {
-  color: #61dafb;
+.resetBtn:hover {
+  background: hsl(0, 75%, 65%);
 }
 
-@keyframes App-logo-spin {
-  from {
-    transform: rotate(0deg);
-  }
-  to {
-    transform: rotate(360deg);
-  }
-}
