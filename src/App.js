@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import Bag from "./components/Bag";
+import packageInfo from "../package.json";
 import "./App.css";
 
 export default function App() {
@@ -289,7 +290,8 @@ export default function App() {
   };
 
   return (
-    <div className="app">
+    <>
+      <main className="app">
 
       {/* ✅ HANDLELISTE */}
       <div className="panel">
@@ -501,6 +503,12 @@ export default function App() {
         })}
       </div>
 
-    </div>
+      </main>
+      <footer className="appFooter">
+        &copy; {new Date().getFullYear()} Techgruppa
+        <span aria-hidden="true"> &middot; </span>
+        Versjon {packageInfo.version}
+      </footer>
+    </>
   );
 }
