@@ -138,18 +138,17 @@ button:active {
 }
 
 /* EKSTRA LEGG TIL KNAPP */
-button[onClick*="addToCart"] {
+.addToCartBtn {
   width: 100%;
   margin-top: 4px;
   margin-bottom: 16px;
-  background: hsl(15, 95%, 60%); /* Rød/oransje */
-  color: white;
+  background: hsl(45, 100%, 52%);
+  color: #1e293b;
   font-size: 16px;
-  text-shadow: 1px 1px 0 #1e293b;
 }
 
-button[onClick*="addToCart"]:hover {
-  background: hsl(15, 95%, 65%);
+.addToCartBtn:hover {
+  background: hsl(45, 100%, 58%);
 }
 
 /* HANDLELISTE NAV UTVALG */

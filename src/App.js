@@ -332,6 +332,7 @@ export default function App() {
           </div>
         </form>
         <button
+          className="addToCartBtn"
           onClick={() => addToCart(newItem.name, newItem.price)}
         >
           Legg i handleliste 🛒
