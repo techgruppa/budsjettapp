@@ -130,6 +130,7 @@ button:active {
   background: hsl(140, 70%, 48%); /* Temagrønn */
   color: white;
   text-shadow: 1px 1px 0 #1e293b;
+  width: 100%;
 }
 
 .primaryBtn:hover {
@@ -464,4 +465,3 @@ h3 {
 .resetBtn:hover {
   background: hsl(0, 75%, 65%);
 }
-
