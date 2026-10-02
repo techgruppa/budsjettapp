@@ -72,10 +72,10 @@ export default function App() {
       const savedWeeks = localStorage.getItem("budget_weeks");
       const loadedWeeks = savedWeeks ? JSON.parse(savedWeeks) : null;
       if (loadedWeeks) {
-        return loadedWeeks.map(() => 100);
+        return loadedWeeks.map(() => 0);
       }
     } catch (e) { }
-    return [100, 100, 100, 100];
+    return [0, 0, 0, 0];
   });
 
   useEffect(() => {
@@ -285,7 +285,7 @@ export default function App() {
       setItems([]);
       setPurchasedItems([]);
       setHistory([]);
-      setAdjustValues([100, 100, 100, 100]);
+      setAdjustValues([0, 0, 0, 0]);
     }
   };
 
