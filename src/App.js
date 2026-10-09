@@ -152,7 +152,8 @@ export default function App() {
       return [];
     }
   });
-  const [adjustmentComment, setAdjustmentComment] = useState("");
+  const [editingAdjustmentId, setEditingAdjustmentId] = useState(null);
+  const [adjustmentCommentDraft, setAdjustmentCommentDraft] = useState("");
   const [removedAdjustments, setRemovedAdjustments] = useState(() => {
     try {
       const saved = localStorage.getItem("budget_removed_adjustments");
@@ -722,11 +723,33 @@ export default function App() {
         timestamp: new Date().toISOString(),
         weekId: weeks[index].id,
         amount: roundedAmount,
-        comment: adjustmentComment.trim(),
+        comment: "",
         changes
       }
     ]);
-    setAdjustmentComment("");
+  };
+
+  const editAdjustmentComment = (entry) => {
+    setEditingAdjustmentId(entry.id);
+    setAdjustmentCommentDraft(entry.comment || "");
+  };
+
+  const saveAdjustmentComment = (event, entryId) => {
+    event.preventDefault();
+    setAdjustmentLog((entries) =>
+      entries.map((entry) =>
+        entry.id === entryId
+          ? { ...entry, comment: adjustmentCommentDraft.trim() }
+          : entry
+      )
+    );
+    setEditingAdjustmentId(null);
+    setAdjustmentCommentDraft("");
+  };
+
+  const cancelAdjustmentComment = () => {
+    setEditingAdjustmentId(null);
+    setAdjustmentCommentDraft("");
   };
 
   const removeAdjustment = (entryId) => {
@@ -797,7 +820,8 @@ export default function App() {
       setHistory([]);
       setAdjustValues([0, 0, 0, 0]);
       setAdjustmentLog([]);
-      setAdjustmentComment("");
+      setEditingAdjustmentId(null);
+      setAdjustmentCommentDraft("");
       setRemovedAdjustments([]);
     }
   };
@@ -1181,17 +1205,6 @@ export default function App() {
 
       <section className="adjustmentLog" aria-labelledby="adjustment-log-title">
         <h2 id="adjustment-log-title">Inn og Ut</h2>
-        <label htmlFor="adjustment-comment">
-          Kommentar til neste justering
-        </label>
-        <input
-          id="adjustment-comment"
-          type="text"
-          value={adjustmentComment}
-          onChange={(event) => setAdjustmentComment(event.target.value)}
-          placeholder="F.eks. lunsjsalg"
-          maxLength="200"
-        />
         <button
           className="undoAdjustmentBtn"
           onClick={undoRemoveAdjustment}
@@ -1207,12 +1220,29 @@ export default function App() {
               .sort((first, second) => new Date(second.timestamp) - new Date(first.timestamp))
               .map((entry) => (
                 <li key={entry.id} className="adjustmentLogEntry">
-                  <div>
-                    <strong>Uke {entry.weekId}</strong>
-                    <span className={entry.amount >= 0 ? "adjustmentCredit" : "adjustmentDebit"}>
-                      {entry.amount > 0 ? "+" : ""}
-                      {roundCurrency(entry.amount)} kr
-                    </span>
+                  <div className="adjustmentLogEntryHeader">
+                    <button
+                      type="button"
+                      className="adjustmentEntryDetails"
+                      onClick={() => editAdjustmentComment(entry)}
+                      aria-label={`Rediger kommentar for justering ${entry.amount} kr for uke ${entry.weekId}`}
+                    >
+                      <span className="adjustmentEntrySummary">
+                        <strong>Uke {entry.weekId}</strong>
+                        <span className={entry.amount >= 0 ? "adjustmentCredit" : "adjustmentDebit"}>
+                          {entry.amount > 0 ? "+" : ""}
+                          {roundCurrency(entry.amount)} kr
+                        </span>
+                      </span>
+                      <time dateTime={entry.timestamp}>
+                        {new Date(entry.timestamp).toLocaleString("nb-NO")}
+                      </time>
+                      {entry.comment ? (
+                        <span className="adjustmentEntryComment">{entry.comment}</span>
+                      ) : (
+                        <span className="adjustmentCommentPrompt">Klikk for å legge til kommentar</span>
+                      )}
+                    </button>
                     <button
                       className="removeAdjustmentBtn"
                       onClick={() => removeAdjustment(entry.id)}
@@ -1222,10 +1252,28 @@ export default function App() {
                       ×
                     </button>
                   </div>
-                  <time dateTime={entry.timestamp}>
-                    {new Date(entry.timestamp).toLocaleString("nb-NO")}
-                  </time>
-                  {entry.comment && <p>{entry.comment}</p>}
+                  {editingAdjustmentId === entry.id && (
+                    <form
+                      className="adjustmentCommentEditor"
+                      onSubmit={(event) => saveAdjustmentComment(event, entry.id)}
+                    >
+                      <label htmlFor={`adjustment-comment-${entry.id}`}>Kommentar</label>
+                      <textarea
+                        id={`adjustment-comment-${entry.id}`}
+                        value={adjustmentCommentDraft}
+                        onChange={(event) => setAdjustmentCommentDraft(event.target.value)}
+                        placeholder="F.eks. lunsjsalg"
+                        maxLength="200"
+                        autoFocus
+                      />
+                      <div>
+                        <button type="submit">Lagre</button>
+                        <button type="button" onClick={cancelAdjustmentComment}>
+                          Avbryt
+                        </button>
+                      </div>
+                    </form>
+                  )}
                 </li>
               ))}
           </ol>

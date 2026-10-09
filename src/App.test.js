@@ -86,18 +86,27 @@ test("allows replacing zero in an adjustment input and restores zero if left bla
   expect(adjustmentInput.value).toBe("0");
 });
 
-test("logs manual adjustments with the week, amount, timestamp, and comment", () => {
+test("adds a comment by editing a logged adjustment", () => {
   const { container } = render(<App />);
   const adjustmentInput = container.querySelector(".adjust input");
 
   fireEvent.change(adjustmentInput, { target: { value: "12.34" } });
-  fireEvent.change(screen.getByLabelText(/Kommentar til neste justering/i), {
-    target: { value: "Lunsjsalg" }
-  });
   fireEvent.click(container.querySelector(".adjust button:last-child"));
 
   expect(screen.getByText("Uke 1")).toBeInTheDocument();
   expect(screen.getByText("+12.34 kr")).toBeInTheDocument();
+  expect(screen.getByText("Klikk for å legge til kommentar")).toBeInTheDocument();
+
+  fireEvent.click(
+    screen.getByRole("button", {
+      name: "Rediger kommentar for justering 12.34 kr for uke 1"
+    })
+  );
+  fireEvent.change(screen.getByLabelText("Kommentar"), {
+    target: { value: "Lunsjsalg" }
+  });
+  fireEvent.click(screen.getByRole("button", { name: "Lagre" }));
+
   expect(screen.getByText("Lunsjsalg")).toBeInTheDocument();
   expect(
     JSON.parse(localStorage.getItem("budget_adjustment_log"))
@@ -109,7 +118,38 @@ test("logs manual adjustments with the week, amount, timestamp, and comment", ()
       timestamp: expect.any(String)
     })
   ]);
-  expect(screen.getByLabelText(/Kommentar til neste justering/i)).toHaveValue("");
+  expect(
+    screen.queryByText("Klikk for å legge til kommentar")
+  ).not.toBeInTheDocument();
+});
+
+test("cancels editing a logged adjustment comment without changing it", () => {
+  localStorage.setItem(
+    "budget_adjustment_log",
+    JSON.stringify([
+      {
+        id: "adjustment-1",
+        timestamp: "2026-10-09T12:00:00.000Z",
+        weekId: 1,
+        amount: 10,
+        comment: "Existing comment"
+      }
+    ])
+  );
+
+  render(<App />);
+  fireEvent.click(
+    screen.getByRole("button", {
+      name: "Rediger kommentar for justering 10 kr for uke 1"
+    })
+  );
+  fireEvent.change(screen.getByLabelText("Kommentar"), {
+    target: { value: "Changed comment" }
+  });
+  fireEvent.click(screen.getByRole("button", { name: "Avbryt" }));
+
+  expect(screen.getByText("Existing comment")).toBeInTheDocument();
+  expect(screen.queryByText("Changed comment")).not.toBeInTheDocument();
 });
 
 test("logs a negative adjustment using the selected week and keeps the comment optional", () => {
