@@ -21,6 +21,18 @@ test('renders budget app', () => {
   ).toEqual(["0", "0", "0", "0"]);
 });
 
+test("renders cloud status below the app content", () => {
+  const { container } = render(<App />);
+  const appChildren = Array.from(container.children);
+
+  expect(appChildren.indexOf(container.querySelector("main"))).toBeLessThan(
+    appChildren.indexOf(container.querySelector(".cloudStatus"))
+  );
+  expect(appChildren.indexOf(container.querySelector(".cloudStatus"))).toBeLessThan(
+    appChildren.indexOf(container.querySelector(".appFooter"))
+  );
+});
+
 test("positions weekdays in the five rows below each week heading", () => {
   const { container } = render(<App />);
   const weekCards = container.querySelectorAll(".bagCard");

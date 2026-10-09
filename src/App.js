@@ -939,44 +939,6 @@ export default function App() {
 
   return (
     <>
-      <section className="cloudStatus" aria-live="polite">
-        {supabase ? (
-          <>
-            <span>
-              Shared budget · {session.user.email} ·{" "}
-              {cloudStatus === "syncing"
-                ? "Saving..."
-                : cloudStatus === "error"
-                  ? "Sync error"
-                  : realtimeConnected
-                    ? "Synced"
-                    : "Saved · live updates reconnecting"}
-            </span>
-            {cloudError && <span className="cloudError" role="alert">{cloudError}</span>}
-            {realtimeWarning && (
-              <span className="cloudError" role="status">{realtimeWarning}</span>
-            )}
-            {cloudStatus === "error" && (
-              <button onClick={() => setCloudSaveRetry((retry) => retry + 1)}>
-                Retry sync
-              </button>
-            )}
-            <button
-              className="secondaryAuthButton"
-              onClick={signOut}
-              disabled={cloudStatus === "syncing"}
-            >
-              Sign out
-            </button>
-          </>
-        ) : (
-          <span>
-            {supabaseConfigError
-              ? supabaseConfigError
-              : "Local-only mode: configure Supabase to share this budget across devices."}
-          </span>
-        )}
-      </section>
       <main className="app">
 
       {/* ✅ HANDLELISTE */}
@@ -1281,6 +1243,44 @@ export default function App() {
       </section>
 
       </main>
+      <section className="cloudStatus" aria-live="polite">
+        {supabase ? (
+          <>
+            <span>
+              Shared budget · {session.user.email} ·{" "}
+              {cloudStatus === "syncing"
+                ? "Saving..."
+                : cloudStatus === "error"
+                  ? "Sync error"
+                  : realtimeConnected
+                    ? "Synced"
+                    : "Saved · live updates reconnecting"}
+            </span>
+            {cloudError && <span className="cloudError" role="alert">{cloudError}</span>}
+            {realtimeWarning && (
+              <span className="cloudError" role="status">{realtimeWarning}</span>
+            )}
+            {cloudStatus === "error" && (
+              <button onClick={() => setCloudSaveRetry((retry) => retry + 1)}>
+                Retry sync
+              </button>
+            )}
+            <button
+              className="secondaryAuthButton"
+              onClick={signOut}
+              disabled={cloudStatus === "syncing"}
+            >
+              Sign out
+            </button>
+          </>
+        ) : (
+          <span>
+            {supabaseConfigError
+              ? supabaseConfigError
+              : "Local-only mode: configure Supabase to share this budget across devices."}
+          </span>
+        )}
+      </section>
       <footer className="appFooter">
         &copy; {new Date().getFullYear()} Techgruppa
         <span aria-hidden="true"> &middot; </span>
