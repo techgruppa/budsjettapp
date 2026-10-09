@@ -19,6 +19,16 @@ const serializeSnapshot = (snapshot) => {
   return JSON.stringify(snapshot);
 };
 
+const roundCurrency = (amount) =>
+  Math.round((Number(amount) + Number.EPSILON) * 100) / 100;
+
+const normalizeMoneyInput = (value) => {
+  if (value === "") return "";
+
+  const amount = Number(value);
+  return Number.isFinite(amount) ? String(roundCurrency(amount)) : "";
+};
+
 export default function App() {
   const [session, setSession] = useState(null);
   const userId = session?.user?.id;
@@ -48,7 +58,7 @@ export default function App() {
   const [totalBudget, setTotalBudget] = useState(() => {
     try {
       const saved = localStorage.getItem("budget_total");
-      return saved ? JSON.parse(saved) : "";
+      return saved ? normalizeMoneyInput(JSON.parse(saved)) : "";
     } catch (e) {
       return "";
     }
@@ -57,12 +67,17 @@ export default function App() {
   const [weeks, setWeeks] = useState(() => {
     try {
       const saved = localStorage.getItem("budget_weeks");
-      return saved ? JSON.parse(saved) : [
+      const loadedWeeks = saved ? JSON.parse(saved) : [
         { id: 1, budget: 2000, current: 2000 },
         { id: 2, budget: 2000, current: 2000 },
         { id: 3, budget: 2000, current: 2000 },
         { id: 4, budget: 2000, current: 2000 }
       ];
+      return loadedWeeks.map((week) => ({
+        ...week,
+        budget: roundCurrency(week.budget),
+        current: roundCurrency(week.current)
+      }));
     } catch (e) {
       return [
         { id: 1, budget: 2000, current: 2000 },
@@ -105,7 +120,11 @@ export default function App() {
   const [adjustValues, setAdjustValues] = useState(() => {
     try {
       const saved = localStorage.getItem("budget_adjust_values");
-      if (saved) return JSON.parse(saved);
+      if (saved) {
+        return JSON.parse(saved).map((value) =>
+          value === 100 ? 0 : roundCurrency(value)
+        );
+      }
     } catch (e) { }
     try {
       const savedWeeks = localStorage.getItem("budget_weeks");
@@ -132,25 +151,43 @@ export default function App() {
       throw new Error("The shared budget data is invalid.");
     }
 
-    const loadedWeeks = Array.isArray(snapshot.weeks)
+    const loadedWeeks = (Array.isArray(snapshot.weeks)
       ? snapshot.weeks
       : [
           { id: 1, budget: 2000, current: 2000 },
           { id: 2, budget: 2000, current: 2000 },
           { id: 3, budget: 2000, current: 2000 },
           { id: 4, budget: 2000, current: 2000 }
-        ];
+        ]).map((week) => ({
+          ...week,
+          budget: roundCurrency(week.budget),
+          current: roundCurrency(week.current)
+        }));
 
-    setTotalBudget(snapshot.totalBudget ?? "");
+    setTotalBudget(normalizeMoneyInput(snapshot.totalBudget ?? ""));
     setWeeks(loadedWeeks);
-    setItems(Array.isArray(snapshot.items) ? snapshot.items : []);
+    setItems(
+      Array.isArray(snapshot.items)
+        ? snapshot.items.map((item) => ({
+            ...item,
+            price: normalizeMoneyInput(item.price ?? "") || "0"
+          }))
+        : []
+    );
     setPurchasedItems(
-      Array.isArray(snapshot.purchasedItems) ? snapshot.purchasedItems : []
+      Array.isArray(snapshot.purchasedItems)
+        ? snapshot.purchasedItems.map((item) => ({
+            ...item,
+            price: normalizeMoneyInput(item.price ?? "") || "0"
+          }))
+        : []
     );
     setHistory(Array.isArray(snapshot.history) ? snapshot.history : []);
     setAdjustValues(
       Array.isArray(snapshot.adjustValues)
-        ? snapshot.adjustValues
+        ? snapshot.adjustValues.map((value) =>
+            value === 100 ? 0 : roundCurrency(value)
+          )
         : loadedWeeks.map(() => 0)
     );
   };
@@ -480,12 +517,12 @@ export default function App() {
 
   // ✅ total handleliste
   const total = (items || []).reduce((sum, item) => {
-    return sum + (parseFloat(item.price) || 0);
+    return roundCurrency(sum + (parseFloat(item.price) || 0));
   }, 0);
 
   // ✅ total handlede varer
   const purchasedTotal = (purchasedItems || []).reduce((sum, item) => {
-    return sum + (parseFloat(item.price) || 0);
+    return roundCurrency(sum + (parseFloat(item.price) || 0));
   }, 0);
 
   const handleAddItem = (e) => {
@@ -494,7 +531,7 @@ export default function App() {
 
 
 
-    const priceVal = parseFloat(newItem.price) || 0;
+    const priceVal = parseFloat(normalizeMoneyInput(newItem.price)) || 0;
     setItems([...(items || []), { name: newItem.name.trim(), price: priceVal.toString() }]);
     setNewItem({ name: "", price: "" });
   };
@@ -505,7 +542,7 @@ export default function App() {
 
     const newItemObj = {
       name: name,
-      price: (parseFloat(price) || 0).toString()
+      price: (parseFloat(normalizeMoneyInput(price)) || 0).toString()
     };
 
     setItems([...(items || []), newItemObj]);
@@ -531,11 +568,11 @@ export default function App() {
       const available = newWeeks[i].current;
 
       if (available >= remaining) {
-        newWeeks[i].current -= remaining;
+        newWeeks[i].current = roundCurrency(newWeeks[i].current - remaining);
         remaining = 0;
       } else {
         newWeeks[i].current = 0;
-        remaining -= available;
+        remaining = roundCurrency(remaining - available);
       }
     }
 
@@ -589,7 +626,7 @@ export default function App() {
         return { ...w, current: 0 };
       }
       if (i === index + 1) {
-        return { ...w, current: w.current + remaining };
+        return { ...w, current: roundCurrency(w.current + remaining) };
       }
       return { ...w };
     });
@@ -612,15 +649,15 @@ export default function App() {
         const available = newWeeks[i].current;
 
         if (available >= remaining) {
-          newWeeks[i].current -= remaining;
+          newWeeks[i].current = roundCurrency(newWeeks[i].current - remaining);
           remaining = 0;
         } else {
           newWeeks[i].current = 0;
-          remaining -= available;
+          remaining = roundCurrency(remaining - available);
         }
       }
     } else {
-      newWeeks[index].current += amount;
+      newWeeks[index].current = roundCurrency(newWeeks[index].current + amount);
     }
 
     setWeeks(newWeeks);
@@ -628,7 +665,7 @@ export default function App() {
 
   const updateAdjustValue = (index, value) => {
     const newValues = [...adjustValues];
-    newValues[index] = Number(value);
+    newValues[index] = Number(normalizeMoneyInput(value)) || 0;
     setAdjustValues(newValues);
   };
 
@@ -810,8 +847,12 @@ export default function App() {
           <div style={{ display: 'flex', gap: '8px' }}>
             <input
               type="number"
+              min="0"
+              step="0.01"
               value={totalBudget}
-              onChange={(e) => setTotalBudget(e.target.value)}
+              onChange={(e) =>
+                setTotalBudget(normalizeMoneyInput(e.target.value))
+              }
               placeholder="Totalbeløp..."
             />
             <button onClick={distributeBudget}>
@@ -835,8 +876,15 @@ export default function App() {
             <input
               className="itemPriceInput"
               type="number"
+              min="0"
+              step="0.01"
               value={newItem.price}
-              onChange={(e) => setNewItem({ ...newItem, price: e.target.value })}
+              onChange={(e) =>
+                setNewItem({
+                  ...newItem,
+                  price: normalizeMoneyInput(e.target.value)
+                })
+              }
               placeholder="kr"
             />
             <button type="submit" style={{ display: 'none' }}>Legg til</button>
@@ -861,7 +909,7 @@ export default function App() {
             items.map((item, i) => (
               <div key={i} className="addedItemRow">
                 <span className="itemName">{item.name}</span>
-                <span className="itemPrice">{item.price} kr</span>
+                <span className="itemPrice">{roundCurrency(item.price)} kr</span>
                 <button
                   className="removeItemBtn"
                   onClick={() => removeItem(i)}
@@ -891,7 +939,7 @@ export default function App() {
             purchasedItems.map((item, i) => (
               <div key={i} className="addedItemRow">
                 <span className="itemName">{item.name}</span>
-                <span className="itemPrice">{item.price} kr</span>
+                <span className="itemPrice">{roundCurrency(item.price)} kr</span>
               </div>
             ))
           )}
@@ -977,7 +1025,7 @@ export default function App() {
               </div>
 
               <div className="amount">
-                {week.current} kr
+                {roundCurrency(week.current)} kr
               </div>
 
               <div className="adjust">
@@ -987,7 +1035,8 @@ export default function App() {
 
                 <input
                   type="number"
-                  min="1"
+                  min="0"
+                  step="0.01"
                   value={adjustValues[i]}
                   onChange={(e) =>
                     updateAdjustValue(i, e.target.value)

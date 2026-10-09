@@ -3,7 +3,8 @@
 En enkel React-app for å fordele et kjøkkenbudsjett mellom uker, føre
 handleliste og registrere kjøp. Uten Supabase-oppsett lagres data lokalt i
 nettleseren. Med Supabase-oppsett kan inviterte brukere logge inn og dele
-budsjettet mellom enheter.
+budsjettet mellom enheter. Manuelle justeringer starter på 0 kr, og beløp
+avrundes til maksimalt to desimaler.
 
 Appen er publisert på:
 [https://techgruppa.github.io/budsjettapp/](https://techgruppa.github.io/budsjettapp/)
