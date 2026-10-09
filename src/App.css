@@ -18,7 +18,7 @@ h1, h2, h3, h4 {
 /* LAYOUT */
 .app {
   display: grid;
-  grid-template-columns: minmax(280px, 320px) minmax(400px, 1fr) minmax(250px, 300px);
+  grid-template-columns: minmax(280px, 320px) minmax(552px, 1fr) minmax(250px, 300px);
   gap: 24px;
   padding: 32px;
   align-items: flex-start;
@@ -221,8 +221,8 @@ button:active {
   border: 3px solid #1e293b;
   border-radius: 24px;
   text-align: center;
-  padding: 24px 20px;
-  min-width: 190px;
+  padding: 24px 100px 24px 20px;
+  min-width: 260px;
   box-shadow: 6px 6px 0 #1e293b;
   box-sizing: border-box;
   position: relative;
@@ -247,14 +247,14 @@ button:active {
   position: absolute;
   top: 0;
   bottom: 0;
-  left: 100%; /* Plasserer containeren rett utenfor høyre ytterkant */
+  right: 8px;
   width: 80px;
   pointer-events: none;
 }
 
 .tick-mark {
   position: absolute;
-  left: 0; /* Starter helt inntil kanten av kortet */
+  right: 0;
   display: flex;
   align-items: center;
   transform: translateY(-50%); /* Sørger for at streken er sentrert på linjen */
@@ -469,7 +469,7 @@ h3 {
 
 @media (min-width: 901px) and (max-width: 1250px) {
   .app {
-    grid-template-columns: minmax(260px, 320px) minmax(400px, 1fr);
+    grid-template-columns: minmax(260px, 320px) minmax(552px, 1fr);
     padding: 24px;
   }
 
