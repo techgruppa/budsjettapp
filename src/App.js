@@ -1,10 +1,49 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import Bag from "./components/Bag";
+import { supabase, supabaseConfigError } from "./supabaseClient";
 import packageInfo from "../package.json";
 import "./App.css";
 
-export default function App() {
+const serializeSnapshot = (snapshot) => {
+  if (Array.isArray(snapshot)) {
+    return `[${snapshot.map(serializeSnapshot).join(",")}]`;
+  }
 
+  if (snapshot && typeof snapshot === "object") {
+    return `{${Object.keys(snapshot)
+      .sort()
+      .map((key) => `${JSON.stringify(key)}:${serializeSnapshot(snapshot[key])}`)
+      .join(",")}}`;
+  }
+
+  return JSON.stringify(snapshot);
+};
+
+export default function App() {
+  const [session, setSession] = useState(null);
+  const userId = session?.user?.id;
+  const [authLoading, setAuthLoading] = useState(Boolean(supabase));
+  const [authEmail, setAuthEmail] = useState("");
+  const [authPassword, setAuthPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [passwordSetupRequired, setPasswordSetupRequired] = useState(
+    () => /type=(invite|recovery)/i.test(window.location.hash)
+  );
+  const [authError, setAuthError] = useState("");
+  const [authMessage, setAuthMessage] = useState("");
+  const [authBusy, setAuthBusy] = useState(false);
+  const [cloudReady, setCloudReady] = useState(false);
+  const [cloudStatus, setCloudStatus] = useState(supabase ? "loading" : "local");
+  const [cloudError, setCloudError] = useState("");
+  const [realtimeConnected, setRealtimeConnected] = useState(false);
+  const [realtimeWarning, setRealtimeWarning] = useState("");
+  const [cloudLoadRetry, setCloudLoadRetry] = useState(0);
+  const [cloudSaveRetry, setCloudSaveRetry] = useState(0);
+  const authenticatedUserIdRef = useRef(null);
+  const localBudgetRef = useRef(null);
+  const skipNextCloudSaveRef = useRef(false);
+  const saveQueueRef = useRef(Promise.resolve());
+  const saveRevisionRef = useRef(0);
 
   const [totalBudget, setTotalBudget] = useState(() => {
     try {
@@ -78,6 +117,192 @@ export default function App() {
     return [0, 0, 0, 0];
   });
 
+  const budgetSnapshot = {
+    totalBudget,
+    weeks,
+    items,
+    purchasedItems,
+    history,
+    adjustValues
+  };
+  localBudgetRef.current = budgetSnapshot;
+
+  const applyBudgetSnapshot = (snapshot) => {
+    if (!snapshot || typeof snapshot !== "object") {
+      throw new Error("The shared budget data is invalid.");
+    }
+
+    const loadedWeeks = Array.isArray(snapshot.weeks)
+      ? snapshot.weeks
+      : [
+          { id: 1, budget: 2000, current: 2000 },
+          { id: 2, budget: 2000, current: 2000 },
+          { id: 3, budget: 2000, current: 2000 },
+          { id: 4, budget: 2000, current: 2000 }
+        ];
+
+    setTotalBudget(snapshot.totalBudget ?? "");
+    setWeeks(loadedWeeks);
+    setItems(Array.isArray(snapshot.items) ? snapshot.items : []);
+    setPurchasedItems(
+      Array.isArray(snapshot.purchasedItems) ? snapshot.purchasedItems : []
+    );
+    setHistory(Array.isArray(snapshot.history) ? snapshot.history : []);
+    setAdjustValues(
+      Array.isArray(snapshot.adjustValues)
+        ? snapshot.adjustValues
+        : loadedWeeks.map(() => 0)
+    );
+  };
+
+  useEffect(() => {
+    if (!supabase) return undefined;
+
+    let active = true;
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      (_event, nextSession) => {
+        const nextUserId = nextSession?.user?.id || null;
+        if (authenticatedUserIdRef.current !== nextUserId) {
+          authenticatedUserIdRef.current = nextUserId;
+          setCloudReady(false);
+          setCloudStatus(nextSession ? "loading" : "signedOut");
+          setCloudError("");
+          setRealtimeConnected(false);
+          setRealtimeWarning("");
+        }
+        setSession(nextSession);
+        if (_event === "PASSWORD_RECOVERY") setPasswordSetupRequired(true);
+        if (_event === "SIGNED_OUT") setPasswordSetupRequired(false);
+      }
+    );
+
+    supabase.auth.getSession().then(({ data, error }) => {
+      if (!active) return;
+      if (error) {
+        setAuthError(`Could not restore your sign-in: ${error.message}`);
+      } else {
+        authenticatedUserIdRef.current = data.session?.user?.id || null;
+        setSession(data.session);
+        if (!data.session) setPasswordSetupRequired(false);
+      }
+      setAuthLoading(false);
+    }).catch((error) => {
+      if (!active) return;
+      setAuthError(`Could not restore your sign-in: ${error.message}`);
+      setAuthLoading(false);
+    });
+
+    return () => {
+      active = false;
+      subscription.unsubscribe();
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!supabase || !userId) {
+      setCloudReady(false);
+      return undefined;
+    }
+
+    let active = true;
+    let channel;
+    setCloudReady(false);
+    setCloudStatus("loading");
+    setCloudError("");
+
+    const loadSharedBudget = async () => {
+      try {
+        let { data: row, error } = await supabase
+          .from("shared_budget")
+          .select("data")
+          .eq("id", "kitchen")
+          .maybeSingle();
+
+        if (error) throw error;
+
+        if (!row) {
+          const { data: inserted, error: insertError } = await supabase
+            .from("shared_budget")
+            .insert({ id: "kitchen", data: localBudgetRef.current })
+            .select("data")
+            .single();
+
+          if (insertError?.code === "23505") {
+            const { data: existing, error: reloadError } = await supabase
+              .from("shared_budget")
+              .select("data")
+              .eq("id", "kitchen")
+              .single();
+            if (reloadError) throw reloadError;
+            row = existing;
+          } else {
+            if (insertError) throw insertError;
+            row = inserted;
+          }
+        }
+
+        if (!active) return;
+        applyBudgetSnapshot(row.data);
+        setCloudReady(true);
+        setCloudStatus("saved");
+
+        channel = supabase
+          .channel("shared-kitchen-budget")
+          .on(
+            "postgres_changes",
+            {
+              event: "*",
+              schema: "public",
+              table: "shared_budget",
+              filter: "id=eq.kitchen"
+            },
+            (payload) => {
+              const remoteData = payload.new?.data;
+              if (
+                !active ||
+                !remoteData ||
+                serializeSnapshot(remoteData) === serializeSnapshot(localBudgetRef.current)
+              ) {
+                return;
+              }
+
+              try {
+                skipNextCloudSaveRef.current = true;
+                applyBudgetSnapshot(remoteData);
+                setCloudStatus("saved");
+                setCloudError("");
+              } catch (error) {
+                setCloudError(`Could not apply shared changes: ${error.message}`);
+                setCloudStatus("error");
+              }
+            }
+          )
+          .subscribe((status, error) => {
+            if (!active) return;
+            setRealtimeConnected(status === "SUBSCRIBED");
+            if (status === "SUBSCRIBED") {
+              setRealtimeWarning("");
+            } else if (status === "CHANNEL_ERROR" || status === "TIMED_OUT") {
+              setRealtimeWarning(
+                `Live updates are unavailable: ${error?.message || status}. Reload to get the latest shared changes.`
+              );
+            }
+          });
+      } catch (error) {
+        if (!active) return;
+        setCloudError(`Could not load the shared budget: ${error.message}`);
+        setCloudStatus("error");
+      }
+    };
+
+    loadSharedBudget();
+
+    return () => {
+      active = false;
+      if (channel) supabase.removeChannel(channel);
+    };
+  }, [userId, cloudLoadRetry]);
+
   useEffect(() => {
     localStorage.setItem("budget_total", JSON.stringify(totalBudget));
   }, [totalBudget]);
@@ -101,6 +326,141 @@ export default function App() {
   useEffect(() => {
     localStorage.setItem("budget_adjust_values", JSON.stringify(adjustValues));
   }, [adjustValues]);
+
+  useEffect(() => {
+    if (!supabase || !userId || !cloudReady) return undefined;
+
+    if (skipNextCloudSaveRef.current) {
+      skipNextCloudSaveRef.current = false;
+      return undefined;
+    }
+
+    const revision = ++saveRevisionRef.current;
+    const snapshot = {
+      totalBudget,
+      weeks,
+      items,
+      purchasedItems,
+      history,
+      adjustValues
+    };
+    setCloudStatus("syncing");
+    setCloudError("");
+
+    const timeout = window.setTimeout(() => {
+      saveQueueRef.current = saveQueueRef.current
+        .then(async () => {
+          const { error } = await supabase
+            .from("shared_budget")
+            .upsert({
+              id: "kitchen",
+              data: snapshot,
+              updated_at: new Date().toISOString()
+            });
+          if (error) throw error;
+
+          if (saveRevisionRef.current === revision) {
+            setCloudStatus("saved");
+          }
+        })
+        .catch((error) => {
+          if (saveRevisionRef.current === revision) {
+            setCloudStatus("error");
+            setCloudError(`Could not save the shared budget: ${error.message}`);
+          }
+        });
+    }, 400);
+
+    return () => window.clearTimeout(timeout);
+  }, [
+    userId,
+    cloudReady,
+    totalBudget,
+    weeks,
+    items,
+    purchasedItems,
+    history,
+    adjustValues,
+    cloudSaveRetry
+  ]);
+
+  const signIn = async (event) => {
+    event.preventDefault();
+    setAuthError("");
+    setAuthMessage("");
+    setAuthBusy(true);
+
+    try {
+      const { error } = await supabase.auth.signInWithPassword({
+        email: authEmail.trim(),
+        password: authPassword
+      });
+      if (error) setAuthError(`Could not sign in: ${error.message}`);
+    } catch (error) {
+      setAuthError(`Could not sign in: ${error.message}`);
+    } finally {
+      setAuthBusy(false);
+    }
+  };
+
+  const requestPasswordReset = async () => {
+    setAuthError("");
+    setAuthMessage("");
+    if (!authEmail.trim()) {
+      setAuthError("Enter your email address first.");
+      return;
+    }
+
+    setAuthBusy(true);
+    try {
+      const { error } = await supabase.auth.resetPasswordForEmail(
+        authEmail.trim(),
+        { redirectTo: window.location.origin + window.location.pathname }
+      );
+      if (error) {
+        setAuthError(`Could not request a password reset: ${error.message}`);
+      } else {
+        setAuthMessage("If that account exists, a password reset email has been sent.");
+      }
+    } catch (error) {
+      setAuthError(`Could not request a password reset: ${error.message}`);
+    } finally {
+      setAuthBusy(false);
+    }
+  };
+
+  const signOut = async () => {
+    setAuthError("");
+    try {
+      const { error } = await supabase.auth.signOut();
+      if (error) setCloudError(`Could not sign out: ${error.message}`);
+    } catch (error) {
+      setCloudError(`Could not sign out: ${error.message}`);
+    }
+  };
+
+  const saveNewPassword = async (event) => {
+    event.preventDefault();
+    setAuthError("");
+    setAuthMessage("");
+    setAuthBusy(true);
+
+    try {
+      const { error } = await supabase.auth.updateUser({ password: newPassword });
+      if (error) {
+        setAuthError(`Could not save your password: ${error.message}`);
+      } else {
+        setPasswordSetupRequired(false);
+        setNewPassword("");
+        window.history.replaceState(null, "", window.location.pathname);
+        setAuthMessage("Your password is set.");
+      }
+    } catch (error) {
+      setAuthError(`Could not save your password: ${error.message}`);
+    } finally {
+      setAuthBusy(false);
+    }
+  };
 
   // ✅ fordel budsjett på sekker
   const distributeBudget = () => {
@@ -289,8 +649,157 @@ export default function App() {
     }
   };
 
+  if (supabase && authLoading) {
+    return (
+      <main className="authPage">
+        <section className="authPanel" aria-live="polite">
+          <h1>Kjøkkenbudsjett</h1>
+          <p>Checking your sign-in...</p>
+        </section>
+      </main>
+    );
+  }
+
+  if (supabase && !session) {
+    return (
+      <main className="authPage">
+        <section className="authPanel">
+          <h1>Kjøkkenbudsjett</h1>
+          <p>Sign in to access the shared kitchen budget.</p>
+          {supabaseConfigError && (
+            <p className="authError" role="alert">{supabaseConfigError}</p>
+          )}
+          {authError && <p className="authError" role="alert">{authError}</p>}
+          {authMessage && <p className="authMessage" role="status">{authMessage}</p>}
+          <form onSubmit={signIn}>
+            <label htmlFor="auth-email">Email</label>
+            <input
+              id="auth-email"
+              type="email"
+              autoComplete="username"
+              value={authEmail}
+              onChange={(event) => setAuthEmail(event.target.value)}
+              required
+            />
+            <label htmlFor="auth-password">Password</label>
+            <input
+              id="auth-password"
+              type="password"
+              autoComplete="current-password"
+              value={authPassword}
+              onChange={(event) => setAuthPassword(event.target.value)}
+              required
+            />
+            <button type="submit" disabled={authBusy}>
+              {authBusy ? "Signing in..." : "Sign in"}
+            </button>
+          </form>
+          <button
+            type="button"
+            className="textAuthButton"
+            onClick={requestPasswordReset}
+            disabled={authBusy}
+          >
+            Forgot password?
+          </button>
+          <p className="authHint">
+            Accounts are invite-only. Ask a budget administrator for access.
+          </p>
+        </section>
+      </main>
+    );
+  }
+
+  if (supabase && session && passwordSetupRequired) {
+    return (
+      <main className="authPage">
+        <section className="authPanel">
+          <h1>Set your password</h1>
+          <p>Choose a password for your kitchen budget account.</p>
+          {authError && <p className="authError" role="alert">{authError}</p>}
+          <form onSubmit={saveNewPassword}>
+            <label htmlFor="new-password">New password</label>
+            <input
+              id="new-password"
+              type="password"
+              autoComplete="new-password"
+              minLength="8"
+              value={newPassword}
+              onChange={(event) => setNewPassword(event.target.value)}
+              required
+            />
+            <button type="submit" disabled={authBusy}>
+              {authBusy ? "Saving..." : "Set password"}
+            </button>
+          </form>
+        </section>
+      </main>
+    );
+  }
+
+  if (supabase && session && !cloudReady) {
+    return (
+      <main className="authPage">
+        <section className="authPanel" aria-live="polite">
+          <h1>Kjøkkenbudsjett</h1>
+          {cloudError ? (
+            <>
+              <p className="authError" role="alert">{cloudError}</p>
+              <button onClick={() => setCloudLoadRetry((retry) => retry + 1)}>
+                Retry loading shared budget
+              </button>
+              <button className="secondaryAuthButton" onClick={signOut}>
+                Sign out
+              </button>
+            </>
+          ) : (
+            <p>Loading shared budget...</p>
+          )}
+        </section>
+      </main>
+    );
+  }
+
   return (
     <>
+      <section className="cloudStatus" aria-live="polite">
+        {supabase ? (
+          <>
+            <span>
+              Shared budget · {session.user.email} ·{" "}
+              {cloudStatus === "syncing"
+                ? "Saving..."
+                : cloudStatus === "error"
+                  ? "Sync error"
+                  : realtimeConnected
+                    ? "Synced"
+                    : "Saved · live updates reconnecting"}
+            </span>
+            {cloudError && <span className="cloudError" role="alert">{cloudError}</span>}
+            {realtimeWarning && (
+              <span className="cloudError" role="status">{realtimeWarning}</span>
+            )}
+            {cloudStatus === "error" && (
+              <button onClick={() => setCloudSaveRetry((retry) => retry + 1)}>
+                Retry sync
+              </button>
+            )}
+            <button
+              className="secondaryAuthButton"
+              onClick={signOut}
+              disabled={cloudStatus === "syncing"}
+            >
+              Sign out
+            </button>
+          </>
+        ) : (
+          <span>
+            {supabaseConfigError
+              ? supabaseConfigError
+              : "Local-only mode: configure Supabase to share this budget across devices."}
+          </span>
+        )}
+      </section>
       <main className="app">
 
       {/* ✅ HANDLELISTE */}

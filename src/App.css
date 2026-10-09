@@ -459,6 +459,108 @@ h3 {
   }
 }
 
+.authPage {
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  box-sizing: border-box;
+}
+
+.authPanel {
+  width: min(100%, 400px);
+  box-sizing: border-box;
+  padding: 28px;
+  background: white;
+  border: 3px solid #1e293b;
+  border-radius: 24px;
+  box-shadow: 6px 6px 0 #1e293b;
+}
+
+.authPanel h1 {
+  margin-top: 0;
+  text-align: center;
+}
+
+.authPanel form {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.authPanel label {
+  font-weight: 600;
+}
+
+.authPanel button {
+  margin-top: 8px;
+}
+
+.authPanel button:disabled,
+.cloudStatus button:disabled {
+  cursor: wait;
+  opacity: 0.65;
+}
+
+.authHint {
+  margin-bottom: 0;
+  color: #64748b;
+  font-size: 14px;
+}
+
+.authError,
+.cloudError {
+  color: #b91c1c;
+  font-weight: 600;
+}
+
+.authMessage {
+  color: #166534;
+  font-weight: 600;
+}
+
+.textAuthButton {
+  display: block;
+  margin: 14px auto 0 !important;
+  padding: 4px 8px;
+  background: transparent;
+  border: none;
+  box-shadow: none;
+  color: hsl(215, 90%, 40%);
+  text-decoration: underline;
+}
+
+.textAuthButton:hover {
+  background: transparent;
+  box-shadow: none;
+  transform: none;
+}
+
+.cloudStatus {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 10px 16px;
+  color: #1e293b;
+  font-size: 14px;
+  text-align: center;
+}
+
+.cloudStatus .cloudError {
+  flex-basis: 100%;
+}
+
+.cloudStatus button {
+  font-size: 13px;
+  padding: 5px 10px;
+}
+
+.secondaryAuthButton {
+  background: hsl(0, 0%, 94%);
+}
+
 /* START PÅ NYTT / NULLSTILL KNAPP */
 .resetBtn {
   background: hsl(0, 75%, 60%); /* Rød farefarge */
