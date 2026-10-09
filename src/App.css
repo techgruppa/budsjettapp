@@ -17,11 +17,12 @@ h1, h2, h3, h4 {
 
 /* LAYOUT */
 .app {
-  display: flex;
-  gap: 40px;
-  padding: 40px;
+  display: grid;
+  grid-template-columns: minmax(280px, 320px) minmax(400px, 1fr) minmax(250px, 300px);
+  gap: 24px;
+  padding: 32px;
   align-items: flex-start;
-  max-width: 1200px;
+  max-width: 1600px;
   margin: 0 auto;
 }
 
@@ -208,10 +209,10 @@ button:active {
 .bags {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
-  column-gap: 110px;
+  column-gap: 32px;
   row-gap: 24px;
   flex: 1;
-  padding-right: 90px;
+  min-width: 0;
 }
 
 /* ENKELT SEKK KORT */
@@ -442,6 +443,7 @@ h3 {
 @media (max-width: 900px) {
   .app {
     flex-direction: column;
+    display: flex;
     align-items: center;
   }
 
@@ -450,12 +452,31 @@ h3 {
     width: 100%;
     max-width: 500px;
   }
+
+  .adjustmentLog {
+    width: 100%;
+    max-width: 500px;
+    position: static;
+  }
 }
 
 @media (max-width: 500px) {
   .bags {
     grid-template-columns: 1fr;
     width: 100%;
+  }
+}
+
+@media (min-width: 901px) and (max-width: 1250px) {
+  .app {
+    grid-template-columns: minmax(260px, 320px) minmax(400px, 1fr);
+    padding: 24px;
+  }
+
+  .adjustmentLog {
+    grid-column: 2;
+    grid-row: auto;
+    position: static;
   }
 }
 
@@ -562,7 +583,10 @@ h3 {
 }
 
 .adjustmentLog {
-  grid-column: 1 / -1;
+  grid-column: 3;
+  grid-row: 1;
+  position: sticky;
+  top: 16px;
   padding: 20px;
   background: white;
   border: 3px solid #1e293b;
@@ -586,7 +610,7 @@ h3 {
   display: flex;
   flex-direction: column;
   gap: 8px;
-  max-height: 260px;
+  max-height: min(55vh, 520px);
   margin: 12px 0 0;
   padding: 0 4px 0 24px;
   overflow-y: auto;
@@ -601,8 +625,12 @@ h3 {
 
 .adjustmentLogEntry > div {
   display: flex;
-  justify-content: space-between;
+  align-items: center;
   gap: 12px;
+}
+
+.adjustmentLogEntry > div strong {
+  margin-right: auto;
 }
 
 .adjustmentLogEntry time {
@@ -623,6 +651,35 @@ h3 {
 .adjustmentDebit {
   color: hsl(0, 70%, 42%);
   font-weight: 700;
+}
+
+.removeAdjustmentBtn {
+  flex: 0 0 auto;
+  padding: 0 7px;
+  background: transparent;
+  border: none;
+  box-shadow: none;
+  color: #64748b;
+  font-size: 20px;
+  line-height: 1.2;
+}
+
+.removeAdjustmentBtn:hover {
+  background: hsl(0, 100%, 92%);
+  box-shadow: none;
+  color: hsl(0, 100%, 45%);
+  transform: none;
+}
+
+.undoAdjustmentBtn {
+  width: 100%;
+  margin-top: 10px;
+  background: hsl(195, 100%, 94%);
+}
+
+.undoAdjustmentBtn:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
 }
 
 /* START PÅ NYTT / NULLSTILL KNAPP */

@@ -99,3 +99,40 @@ test("logs a negative adjustment using the selected week and keeps the comment o
     })
   );
 });
+
+test("removing a logged adjustment reverses its balance changes and undo restores it", () => {
+  localStorage.setItem(
+    "budget_weeks",
+    JSON.stringify([
+      { id: 1, budget: 2000, current: 5 },
+      { id: 2, budget: 2000, current: 10 }
+    ])
+  );
+
+  const { container } = render(<App />);
+  const adjustmentInputs = container.querySelectorAll(".adjust input");
+  const decreaseButtons = container.querySelectorAll(".adjust button:first-child");
+
+  fireEvent.change(adjustmentInputs[0], { target: { value: "12" } });
+  fireEvent.click(decreaseButtons[0]);
+
+  expect(screen.getByText("-12 kr")).toBeInTheDocument();
+  expect(screen.getByText("0 kr")).toBeInTheDocument();
+  expect(screen.getByText("3 kr")).toBeInTheDocument();
+
+  fireEvent.click(
+    screen.getByRole("button", {
+      name: "Fjern justering -12 kr for uke 1"
+    })
+  );
+
+  expect(screen.queryByText("-12 kr")).not.toBeInTheDocument();
+  expect(screen.getByText("5 kr")).toBeInTheDocument();
+  expect(screen.getByText("10 kr")).toBeInTheDocument();
+
+  fireEvent.click(screen.getByRole("button", { name: "Angre fjerning" }));
+
+  expect(screen.getByText("-12 kr")).toBeInTheDocument();
+  expect(screen.getByText("0 kr")).toBeInTheDocument();
+  expect(screen.getByText("3 kr")).toBeInTheDocument();
+});

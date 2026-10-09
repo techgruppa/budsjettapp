@@ -5,7 +5,8 @@ handleliste og registrere kjøp. Uten Supabase-oppsett lagres data lokalt i
 nettleseren. Med Supabase-oppsett kan inviterte brukere logge inn og dele
 budsjettet mellom enheter. Manuelle justeringer starter på 0 kr, og beløp
 avrundes til maksimalt to desimaler. Manuelle justeringer logges med uke,
-tidspunkt og en valgfri kommentar.
+tidspunkt og en valgfri kommentar i kolonnen «Inn og Ut». Loggoppføringer kan
+fjernes for å tilbakeføre justeringen, og den siste fjerningen kan angres.
 
 Appen er publisert på:
 [https://techgruppa.github.io/budsjettapp/](https://techgruppa.github.io/budsjettapp/)

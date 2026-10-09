@@ -29,6 +29,32 @@ const normalizeMoneyInput = (value) => {
   return Number.isFinite(amount) ? String(roundCurrency(amount)) : "";
 };
 
+const applyManualAdjustment = (weeks, index, amount) => {
+  const newWeeks = weeks.map((week) => ({ ...week }));
+  let remaining = roundCurrency(amount);
+
+  if (remaining < 0) {
+    remaining = Math.abs(remaining);
+
+    for (let i = index; i < newWeeks.length; i++) {
+      if (remaining <= 0) break;
+
+      const available = newWeeks[i].current;
+      if (available >= remaining) {
+        newWeeks[i].current = roundCurrency(available - remaining);
+        remaining = 0;
+      } else {
+        newWeeks[i].current = 0;
+        remaining = roundCurrency(remaining - available);
+      }
+    }
+  } else {
+    newWeeks[index].current = roundCurrency(newWeeks[index].current + remaining);
+  }
+
+  return newWeeks;
+};
+
 export default function App() {
   const [session, setSession] = useState(null);
   const userId = session?.user?.id;
@@ -127,6 +153,15 @@ export default function App() {
     }
   });
   const [adjustmentComment, setAdjustmentComment] = useState("");
+  const [removedAdjustments, setRemovedAdjustments] = useState(() => {
+    try {
+      const saved = localStorage.getItem("budget_removed_adjustments");
+      const entries = saved ? JSON.parse(saved) : [];
+      return Array.isArray(entries) ? entries : [];
+    } catch (e) {
+      return [];
+    }
+  });
 
   const [adjustValues, setAdjustValues] = useState(() => {
     try {
@@ -154,7 +189,8 @@ export default function App() {
     purchasedItems,
     history,
     adjustValues,
-    adjustmentLog
+    adjustmentLog,
+    removedAdjustments
   };
   localBudgetRef.current = budgetSnapshot;
 
@@ -197,6 +233,9 @@ export default function App() {
     setHistory(Array.isArray(snapshot.history) ? snapshot.history : []);
     setAdjustmentLog(
       Array.isArray(snapshot.adjustmentLog) ? snapshot.adjustmentLog : []
+    );
+    setRemovedAdjustments(
+      Array.isArray(snapshot.removedAdjustments) ? snapshot.removedAdjustments : []
     );
     setAdjustValues(
       Array.isArray(snapshot.adjustValues)
@@ -384,6 +423,13 @@ export default function App() {
   }, [adjustmentLog]);
 
   useEffect(() => {
+    localStorage.setItem(
+      "budget_removed_adjustments",
+      JSON.stringify(removedAdjustments)
+    );
+  }, [removedAdjustments]);
+
+  useEffect(() => {
     if (!supabase || !userId || !cloudReady) return undefined;
 
     if (skipNextCloudSaveRef.current) {
@@ -399,7 +445,8 @@ export default function App() {
       purchasedItems,
       history,
       adjustValues,
-      adjustmentLog
+      adjustmentLog,
+      removedAdjustments
     };
     setCloudStatus("syncing");
     setCloudError("");
@@ -439,6 +486,7 @@ export default function App() {
     history,
     adjustValues,
     adjustmentLog,
+    removedAdjustments,
     cloudSaveRetry
   ]);
 
@@ -660,29 +708,11 @@ export default function App() {
     const roundedAmount = roundCurrency(amount);
     if (!roundedAmount) return;
 
-    const newWeeks = weeks.map(w => ({ ...w }));
-
-    let remaining = roundedAmount;
-
-    if (roundedAmount < 0) {
-      remaining = Math.abs(roundedAmount);
-
-      for (let i = index; i < newWeeks.length; i++) {
-        if (remaining <= 0) break;
-
-        const available = newWeeks[i].current;
-
-        if (available >= remaining) {
-          newWeeks[i].current = roundCurrency(newWeeks[i].current - remaining);
-          remaining = 0;
-        } else {
-          newWeeks[i].current = 0;
-          remaining = roundCurrency(remaining - available);
-        }
-      }
-    } else {
-      newWeeks[index].current = roundCurrency(newWeeks[index].current + amount);
-    }
+    const newWeeks = applyManualAdjustment(weeks, index, roundedAmount);
+    const changes = newWeeks.flatMap((week, weekIndex) => {
+      const delta = roundCurrency(week.current - weeks[weekIndex].current);
+      return delta === 0 ? [] : [{ weekId: week.id, delta }];
+    });
 
     setWeeks(newWeeks);
     setAdjustmentLog([
@@ -692,10 +722,57 @@ export default function App() {
         timestamp: new Date().toISOString(),
         weekId: weeks[index].id,
         amount: roundedAmount,
-        comment: adjustmentComment.trim()
+        comment: adjustmentComment.trim(),
+        changes
       }
     ]);
     setAdjustmentComment("");
+  };
+
+  const removeAdjustment = (entryId) => {
+    const entry = adjustmentLog.find((adjustment) => adjustment.id === entryId);
+    if (!entry) return;
+
+    const entryIndex = weeks.findIndex((week) => week.id === entry.weekId);
+    if (entryIndex < 0) return;
+
+    const changes = Array.isArray(entry.changes)
+      ? entry.changes
+      : applyManualAdjustment(weeks, entryIndex, entry.amount).flatMap(
+          (week, weekIndex) => {
+            const delta = roundCurrency(week.current - weeks[weekIndex].current);
+            return delta === 0 ? [] : [{ weekId: week.id, delta }];
+          }
+        );
+
+    setWeeks((currentWeeks) =>
+      currentWeeks.map((week) => {
+        const change = changes.find((item) => item.weekId === week.id);
+        return change
+          ? { ...week, current: roundCurrency(week.current - change.delta) }
+          : week;
+      })
+    );
+    setAdjustmentLog((entries) =>
+      entries.filter((adjustment) => adjustment.id !== entryId)
+    );
+    setRemovedAdjustments((removed) => [...removed, { entry, changes }]);
+  };
+
+  const undoRemoveAdjustment = () => {
+    const removed = removedAdjustments[removedAdjustments.length - 1];
+    if (!removed) return;
+
+    setWeeks((currentWeeks) =>
+      currentWeeks.map((week) => {
+        const change = removed.changes.find((item) => item.weekId === week.id);
+        return change
+          ? { ...week, current: roundCurrency(week.current + change.delta) }
+          : week;
+      })
+    );
+    setAdjustmentLog((entries) => [...entries, removed.entry]);
+    setRemovedAdjustments((entries) => entries.slice(0, -1));
   };
 
   const updateAdjustValue = (index, value) => {
@@ -720,6 +797,7 @@ export default function App() {
       setAdjustValues([0, 0, 0, 0]);
       setAdjustmentLog([]);
       setAdjustmentComment("");
+      setRemovedAdjustments([]);
     }
   };
 
@@ -1096,24 +1174,35 @@ export default function App() {
             </div>
           );
         })}
-        <section className="adjustmentLog" aria-labelledby="adjustment-log-title">
-          <h2 id="adjustment-log-title">Manuelle justeringer</h2>
-          <label htmlFor="adjustment-comment">
-            Kommentar til neste justering
-          </label>
-          <input
-            id="adjustment-comment"
-            type="text"
-            value={adjustmentComment}
-            onChange={(event) => setAdjustmentComment(event.target.value)}
-            placeholder="F.eks. lunsjsalg"
-            maxLength="200"
-          />
-          {adjustmentLog.length === 0 ? (
-            <p className="emptyListText">Ingen manuelle justeringer ennå.</p>
-          ) : (
-            <ol className="adjustmentLogEntries">
-              {[...adjustmentLog].reverse().map((entry) => (
+      </div>
+
+      <section className="adjustmentLog" aria-labelledby="adjustment-log-title">
+        <h2 id="adjustment-log-title">Inn og Ut</h2>
+        <label htmlFor="adjustment-comment">
+          Kommentar til neste justering
+        </label>
+        <input
+          id="adjustment-comment"
+          type="text"
+          value={adjustmentComment}
+          onChange={(event) => setAdjustmentComment(event.target.value)}
+          placeholder="F.eks. lunsjsalg"
+          maxLength="200"
+        />
+        <button
+          className="undoAdjustmentBtn"
+          onClick={undoRemoveAdjustment}
+          disabled={removedAdjustments.length === 0}
+        >
+          Angre fjerning
+        </button>
+        {adjustmentLog.length === 0 ? (
+          <p className="emptyListText">Ingen manuelle justeringer ennå.</p>
+        ) : (
+          <ol className="adjustmentLogEntries">
+            {[...adjustmentLog]
+              .sort((first, second) => new Date(second.timestamp) - new Date(first.timestamp))
+              .map((entry) => (
                 <li key={entry.id} className="adjustmentLogEntry">
                   <div>
                     <strong>Uke {entry.weekId}</strong>
@@ -1121,6 +1210,14 @@ export default function App() {
                       {entry.amount > 0 ? "+" : ""}
                       {roundCurrency(entry.amount)} kr
                     </span>
+                    <button
+                      className="removeAdjustmentBtn"
+                      onClick={() => removeAdjustment(entry.id)}
+                      aria-label={`Fjern justering ${entry.amount} kr for uke ${entry.weekId}`}
+                      title="Fjern justering og tilbakefør beløpet"
+                    >
+                      ×
+                    </button>
                   </div>
                   <time dateTime={entry.timestamp}>
                     {new Date(entry.timestamp).toLocaleString("nb-NO")}
@@ -1128,10 +1225,9 @@ export default function App() {
                   {entry.comment && <p>{entry.comment}</p>}
                 </li>
               ))}
-            </ol>
-          )}
-        </section>
-      </div>
+          </ol>
+        )}
+      </section>
 
       </main>
       <footer className="appFooter">
