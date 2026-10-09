@@ -1105,11 +1105,10 @@ export default function App() {
             <div key={i} className={`bagCard ${statusClass}`} style={cardStyle}>
               {/* Diskret rutenett/linjer for ukedager */}
               <div className="card-grid-lines">
-                <div className="grid-line" style={{ top: '16.7%' }}></div>
-                <div className="grid-line" style={{ top: '33.3%' }}></div>
-                <div className="grid-line" style={{ top: '50%' }}></div>
-                <div className="grid-line" style={{ top: '66.7%' }}></div>
-                <div className="grid-line" style={{ top: '83.3%' }}></div>
+                <div className="grid-line" style={{ top: '20%' }}></div>
+                <div className="grid-line" style={{ top: '40%' }}></div>
+                <div className="grid-line" style={{ top: '60%' }}></div>
+                <div className="grid-line" style={{ top: '80%' }}></div>
               </div>
 
               <h3>Uke {week.id} 🪙</h3>
@@ -1117,11 +1116,11 @@ export default function App() {
               <Bag fillPercent={percent} color={color} />
 
               <div className="card-ticks">
-                <div className="tick-mark" style={{ top: '16.7%' }}>
+                <div className="tick-mark" style={{ top: '10%' }}>
                   <div className="tick-line"></div>
                   <span className="tick-label">Mandag</span>
                 </div>
-                <div className="tick-mark" style={{ top: '33.3%' }}>
+                <div className="tick-mark" style={{ top: '30%' }}>
                   <div className="tick-line"></div>
                   <span className="tick-label">Tirsdag</span>
                 </div>
@@ -1129,11 +1128,11 @@ export default function App() {
                   <div className="tick-line"></div>
                   <span className="tick-label">Onsdag</span>
                 </div>
-                <div className="tick-mark" style={{ top: '66.7%' }}>
+                <div className="tick-mark" style={{ top: '70%' }}>
                   <div className="tick-line"></div>
                   <span className="tick-label">Torsdag</span>
                 </div>
-                <div className="tick-mark" style={{ top: '83.3%' }}>
+                <div className="tick-mark" style={{ top: '90%' }}>
                   <div className="tick-line"></div>
                   <span className="tick-label">Fredag</span>
                 </div>

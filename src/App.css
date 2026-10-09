@@ -18,7 +18,7 @@ h1, h2, h3, h4 {
 /* LAYOUT */
 .app {
   display: grid;
-  grid-template-columns: minmax(280px, 320px) minmax(552px, 1fr) minmax(250px, 300px);
+  grid-template-columns: minmax(280px, 320px) minmax(696px, 1fr) minmax(250px, 300px);
   gap: 24px;
   padding: 32px;
   align-items: flex-start;
@@ -208,9 +208,11 @@ button:active {
 /* SEKKER / UKESBINGER */
 .bags {
   display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  column-gap: 32px;
+  grid-template-columns: repeat(2, minmax(260px, 1fr));
+  column-gap: 96px;
   row-gap: 24px;
+  padding-right: 80px;
+  box-sizing: border-box;
   flex: 1;
   min-width: 0;
 }
@@ -221,7 +223,7 @@ button:active {
   border: 3px solid #1e293b;
   border-radius: 24px;
   text-align: center;
-  padding: 24px 100px 24px 20px;
+  padding: 24px 20px;
   min-width: 260px;
   box-shadow: 6px 6px 0 #1e293b;
   box-sizing: border-box;
@@ -247,14 +249,14 @@ button:active {
   position: absolute;
   top: 0;
   bottom: 0;
-  right: 8px;
+  left: 100%;
   width: 80px;
   pointer-events: none;
 }
 
 .tick-mark {
   position: absolute;
-  right: 0;
+  left: 0;
   display: flex;
   align-items: center;
   transform: translateY(-50%); /* Sørger for at streken er sentrert på linjen */
@@ -448,7 +450,7 @@ h3 {
   }
 
   .bags {
-    grid-template-columns: repeat(2, 1fr);
+    grid-template-columns: 1fr;
     width: 100%;
     max-width: 500px;
   }
@@ -469,7 +471,7 @@ h3 {
 
 @media (min-width: 901px) and (max-width: 1250px) {
   .app {
-    grid-template-columns: minmax(260px, 320px) minmax(552px, 1fr);
+    grid-template-columns: minmax(260px, 320px) minmax(696px, 1fr);
     padding: 24px;
   }
 

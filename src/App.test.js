@@ -21,6 +21,21 @@ test('renders budget app', () => {
   ).toEqual(["0", "0", "0", "0"]);
 });
 
+test("positions weekdays in the five rows below each week heading", () => {
+  const { container } = render(<App />);
+  const weekCards = container.querySelectorAll(".bagCard");
+
+  expect(weekCards).toHaveLength(4);
+  weekCards.forEach((card) => {
+    expect(
+      Array.from(card.querySelectorAll(".tick-mark")).map((marker) => marker.style.top)
+    ).toEqual(["10%", "30%", "50%", "70%", "90%"]);
+    expect(
+      Array.from(card.querySelectorAll(".grid-line")).map((line) => line.style.top)
+    ).toEqual(["20%", "40%", "60%", "80%"]);
+  });
+});
+
 test("migrates the old manual adjustment default to zero", () => {
   localStorage.setItem(
     "budget_adjust_values",
