@@ -69,6 +69,23 @@ test("limits entered budget, purchase, and adjustment amounts to two decimals", 
   expect(adjustmentInput.value).toBe("9");
 });
 
+test("allows replacing zero in an adjustment input and restores zero if left blank", () => {
+  const { container } = render(<App />);
+  const [adjustmentInput] = container.querySelectorAll(".adjust input");
+
+  fireEvent.change(adjustmentInput, { target: { value: "" } });
+  expect(adjustmentInput.value).toBe("");
+
+  fireEvent.change(adjustmentInput, { target: { value: "1" } });
+  expect(adjustmentInput.value).toBe("1");
+  fireEvent.click(container.querySelector(".adjust button:last-child"));
+  expect(screen.getByText("2001 kr")).toBeInTheDocument();
+
+  fireEvent.change(adjustmentInput, { target: { value: "" } });
+  fireEvent.blur(adjustmentInput);
+  expect(adjustmentInput.value).toBe("0");
+});
+
 test("logs manual adjustments with the week, amount, timestamp, and comment", () => {
   const { container } = render(<App />);
   const adjustmentInput = container.querySelector(".adjust input");

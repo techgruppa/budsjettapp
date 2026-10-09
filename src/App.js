@@ -777,7 +777,8 @@ export default function App() {
 
   const updateAdjustValue = (index, value) => {
     const newValues = [...adjustValues];
-    newValues[index] = Number(normalizeMoneyInput(value)) || 0;
+    newValues[index] =
+      value === "" ? "" : Number(normalizeMoneyInput(value)) || 0;
     setAdjustValues(newValues);
   };
 
@@ -1155,6 +1156,9 @@ export default function App() {
                   onChange={(e) =>
                     updateAdjustValue(i, e.target.value)
                   }
+                  onBlur={(e) => {
+                    if (e.target.value === "") updateAdjustValue(i, "0");
+                  }}
                 />
 
                 <button onClick={() => adjustWeek(i, adjustValues[i])}>
