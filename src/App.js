@@ -117,6 +117,17 @@ export default function App() {
     }
   });
 
+  const [adjustmentLog, setAdjustmentLog] = useState(() => {
+    try {
+      const saved = localStorage.getItem("budget_adjustment_log");
+      const entries = saved ? JSON.parse(saved) : [];
+      return Array.isArray(entries) ? entries : [];
+    } catch (e) {
+      return [];
+    }
+  });
+  const [adjustmentComment, setAdjustmentComment] = useState("");
+
   const [adjustValues, setAdjustValues] = useState(() => {
     try {
       const saved = localStorage.getItem("budget_adjust_values");
@@ -142,7 +153,8 @@ export default function App() {
     items,
     purchasedItems,
     history,
-    adjustValues
+    adjustValues,
+    adjustmentLog
   };
   localBudgetRef.current = budgetSnapshot;
 
@@ -183,6 +195,9 @@ export default function App() {
         : []
     );
     setHistory(Array.isArray(snapshot.history) ? snapshot.history : []);
+    setAdjustmentLog(
+      Array.isArray(snapshot.adjustmentLog) ? snapshot.adjustmentLog : []
+    );
     setAdjustValues(
       Array.isArray(snapshot.adjustValues)
         ? snapshot.adjustValues.map((value) =>
@@ -365,6 +380,10 @@ export default function App() {
   }, [adjustValues]);
 
   useEffect(() => {
+    localStorage.setItem("budget_adjustment_log", JSON.stringify(adjustmentLog));
+  }, [adjustmentLog]);
+
+  useEffect(() => {
     if (!supabase || !userId || !cloudReady) return undefined;
 
     if (skipNextCloudSaveRef.current) {
@@ -379,7 +398,8 @@ export default function App() {
       items,
       purchasedItems,
       history,
-      adjustValues
+      adjustValues,
+      adjustmentLog
     };
     setCloudStatus("syncing");
     setCloudError("");
@@ -418,6 +438,7 @@ export default function App() {
     purchasedItems,
     history,
     adjustValues,
+    adjustmentLog,
     cloudSaveRetry
   ]);
 
@@ -636,12 +657,15 @@ export default function App() {
 
   // ✅ +- med flyt
   const adjustWeek = (index, amount) => {
+    const roundedAmount = roundCurrency(amount);
+    if (!roundedAmount) return;
+
     const newWeeks = weeks.map(w => ({ ...w }));
 
-    let remaining = amount;
+    let remaining = roundedAmount;
 
-    if (amount < 0) {
-      remaining = Math.abs(amount);
+    if (roundedAmount < 0) {
+      remaining = Math.abs(roundedAmount);
 
       for (let i = index; i < newWeeks.length; i++) {
         if (remaining <= 0) break;
@@ -661,6 +685,17 @@ export default function App() {
     }
 
     setWeeks(newWeeks);
+    setAdjustmentLog([
+      ...adjustmentLog,
+      {
+        id: `${Date.now()}-${Math.random()}`,
+        timestamp: new Date().toISOString(),
+        weekId: weeks[index].id,
+        amount: roundedAmount,
+        comment: adjustmentComment.trim()
+      }
+    ]);
+    setAdjustmentComment("");
   };
 
   const updateAdjustValue = (index, value) => {
@@ -683,6 +718,8 @@ export default function App() {
       setPurchasedItems([]);
       setHistory([]);
       setAdjustValues([0, 0, 0, 0]);
+      setAdjustmentLog([]);
+      setAdjustmentComment("");
     }
   };
 
@@ -1059,6 +1096,41 @@ export default function App() {
             </div>
           );
         })}
+        <section className="adjustmentLog" aria-labelledby="adjustment-log-title">
+          <h2 id="adjustment-log-title">Manuelle justeringer</h2>
+          <label htmlFor="adjustment-comment">
+            Kommentar til neste justering
+          </label>
+          <input
+            id="adjustment-comment"
+            type="text"
+            value={adjustmentComment}
+            onChange={(event) => setAdjustmentComment(event.target.value)}
+            placeholder="F.eks. lunsjsalg"
+            maxLength="200"
+          />
+          {adjustmentLog.length === 0 ? (
+            <p className="emptyListText">Ingen manuelle justeringer ennå.</p>
+          ) : (
+            <ol className="adjustmentLogEntries">
+              {[...adjustmentLog].reverse().map((entry) => (
+                <li key={entry.id} className="adjustmentLogEntry">
+                  <div>
+                    <strong>Uke {entry.weekId}</strong>
+                    <span className={entry.amount >= 0 ? "adjustmentCredit" : "adjustmentDebit"}>
+                      {entry.amount > 0 ? "+" : ""}
+                      {roundCurrency(entry.amount)} kr
+                    </span>
+                  </div>
+                  <time dateTime={entry.timestamp}>
+                    {new Date(entry.timestamp).toLocaleString("nb-NO")}
+                  </time>
+                  {entry.comment && <p>{entry.comment}</p>}
+                </li>
+              ))}
+            </ol>
+          )}
+        </section>
       </div>
 
       </main>

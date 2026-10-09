@@ -561,6 +561,70 @@ h3 {
   background: hsl(0, 0%, 94%);
 }
 
+.adjustmentLog {
+  grid-column: 1 / -1;
+  padding: 20px;
+  background: white;
+  border: 3px solid #1e293b;
+  border-radius: 20px;
+  box-shadow: 4px 4px 0 #1e293b;
+}
+
+.adjustmentLog h2 {
+  margin: 0 0 12px;
+  color: hsl(215, 90%, 50%);
+  text-align: center;
+}
+
+.adjustmentLog > label {
+  display: block;
+  margin-bottom: 6px;
+  font-weight: 600;
+}
+
+.adjustmentLogEntries {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: 260px;
+  margin: 12px 0 0;
+  padding: 0 4px 0 24px;
+  overflow-y: auto;
+}
+
+.adjustmentLogEntry {
+  padding: 10px 12px;
+  background: hsl(0, 0%, 98%);
+  border: 2px solid #1e293b;
+  border-radius: 12px;
+}
+
+.adjustmentLogEntry > div {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.adjustmentLogEntry time {
+  color: #64748b;
+  font-size: 12px;
+}
+
+.adjustmentLogEntry p {
+  margin: 6px 0 0;
+  overflow-wrap: anywhere;
+}
+
+.adjustmentCredit {
+  color: hsl(140, 70%, 35%);
+  font-weight: 700;
+}
+
+.adjustmentDebit {
+  color: hsl(0, 70%, 42%);
+  font-weight: 700;
+}
+
 /* START PÅ NYTT / NULLSTILL KNAPP */
 .resetBtn {
   background: hsl(0, 75%, 60%); /* Rød farefarge */

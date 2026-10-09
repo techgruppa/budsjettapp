@@ -6,6 +6,10 @@ jest.mock("./supabaseClient", () => ({
   supabaseConfigError: ""
 }));
 
+beforeEach(() => {
+  localStorage.clear();
+});
+
 test('renders budget app', () => {
   const { container } = render(<App />);
   const element = screen.getByText(/Sett totalbudsjett:/i);
@@ -48,4 +52,50 @@ test("limits entered budget, purchase, and adjustment amounts to two decimals", 
   expect(budgetInput.value).toBe("123.46");
   expect(priceInput.value).toBe("4.57");
   expect(adjustmentInput.value).toBe("9");
+});
+
+test("logs manual adjustments with the week, amount, timestamp, and comment", () => {
+  const { container } = render(<App />);
+  const adjustmentInput = container.querySelector(".adjust input");
+
+  fireEvent.change(adjustmentInput, { target: { value: "12.34" } });
+  fireEvent.change(screen.getByLabelText(/Kommentar til neste justering/i), {
+    target: { value: "Lunsjsalg" }
+  });
+  fireEvent.click(container.querySelector(".adjust button:last-child"));
+
+  expect(screen.getByText("Uke 1")).toBeInTheDocument();
+  expect(screen.getByText("+12.34 kr")).toBeInTheDocument();
+  expect(screen.getByText("Lunsjsalg")).toBeInTheDocument();
+  expect(
+    JSON.parse(localStorage.getItem("budget_adjustment_log"))
+  ).toEqual([
+    expect.objectContaining({
+      weekId: 1,
+      amount: 12.34,
+      comment: "Lunsjsalg",
+      timestamp: expect.any(String)
+    })
+  ]);
+  expect(screen.getByLabelText(/Kommentar til neste justering/i)).toHaveValue("");
+});
+
+test("logs a negative adjustment using the selected week and keeps the comment optional", () => {
+  const { container } = render(<App />);
+  const adjustmentInputs = container.querySelectorAll(".adjust input");
+
+  fireEvent.change(adjustmentInputs[1], { target: { value: "5.5" } });
+  fireEvent.click(container.querySelectorAll(".adjust button:first-child")[1]);
+
+  expect(screen.getByText("-5.5 kr")).toBeInTheDocument();
+  expect(screen.getByText("Uke 2")).toBeInTheDocument();
+  expect(
+    JSON.parse(localStorage.getItem("budget_adjustment_log"))[0]
+  ).toEqual(
+    expect.objectContaining({
+      weekId: 2,
+      amount: -5.5,
+      comment: ""
+    })
+  );
 });
