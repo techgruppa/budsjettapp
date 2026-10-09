@@ -1,18 +1,18 @@
 {
   "files": {
     "main.css": "/budsjettapp/static/css/main.e9206f5b.css",
-    "main.js": "/budsjettapp/static/js/main.75b7fc80.js",
+    "main.js": "/budsjettapp/static/js/main.8cd34e99.js",
     "static/js/453.a458b106.chunk.js": "/budsjettapp/static/js/453.a458b106.chunk.js",
     "static/media/full.png": "/budsjettapp/static/media/full.acf8a20c7d07d4714063.png",
     "static/media/middels.png": "/budsjettapp/static/media/middels.530f578be8d2baab3357.png",
     "static/media/tom.png": "/budsjettapp/static/media/tom.90cd0f226ac163469caa.png",
     "index.html": "/budsjettapp/index.html",
     "main.e9206f5b.css.map": "/budsjettapp/static/css/main.e9206f5b.css.map",
-    "main.75b7fc80.js.map": "/budsjettapp/static/js/main.75b7fc80.js.map",
+    "main.8cd34e99.js.map": "/budsjettapp/static/js/main.8cd34e99.js.map",
     "453.a458b106.chunk.js.map": "/budsjettapp/static/js/453.a458b106.chunk.js.map"
   },
   "entrypoints": [
     "static/css/main.e9206f5b.css",
-    "static/js/main.75b7fc80.js"
+    "static/js/main.8cd34e99.js"
   ]
 }
