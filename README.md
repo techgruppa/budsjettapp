@@ -26,10 +26,12 @@ Versjonen følger formatet `major.minor.patch` og vises automatisk i appens
 bunntekst fra `package.json`. Øk patch-verdien for hver lokal, ikke-publisert
 endring, og minor-verdien én gang for hver push.
 
-## Supabase: delt budsjett og innlogging
+## Supabase: egne budsjetter per konto og innlogging
 
 1. Opprett et Supabase-prosjekt på [supabase.com](https://supabase.com/) og
-   kjør SQL-en i `supabase/schema.sql` i prosjektets SQL Editor.
+   kjør SQL-en i `supabase/schema.sql` i prosjektets SQL Editor. Ved oppgradering
+   fra delt budsjett, kjør SQL-en på nytt for å kopiere dagens budsjett til hver
+   eksisterende konto og slå av tilgang til den gamle delte raden.
 2. I Supabase Authentication-innstillingene, slå av offentlig registrering.
    Inviter hver bruker fra prosjektets brukeradministrasjon. De kan sette
    passord via invitasjonslenken. Appen støtter også tilbakestilling av passord.
@@ -44,14 +46,12 @@ endring, og minor-verdien én gang for hver push.
    key er ment for klientbruk; legg aldri inn en `service_role`-nøkkel.
 6. Opprett kontoer via Authentication → Users → Add user. Offentlig registrering
    skal være slått av. Send invitasjon til den første brukeren og logg inn med
-   denne kontoen. Hvis den delte databasen ennå ikke har en rad, oppretter første
-   innlogging den fra dataene som allerede er lagret i den nettleseren.
+   denne kontoen. Nye kontoer får sitt eget standardbudsjett ved første innlogging.
 
-SQL-oppsettet begrenser lesing og skriving til autentiserte brukere. Hold
-offentlig registrering avslått og inviter bare personer som skal ha tilgang:
-alle inviterte brukere deler og kan endre samme budsjett. Endringer synkroniseres
-automatisk mellom aktive økter; samtidige endringer lagres som én delt tilstand,
-så en nyere lagring kan overskrive en endring som ikke allerede er synkronisert.
+SQL-oppsettet begrenser lesing og skriving til eierkontoen. Hold offentlig
+registrering avslått og inviter bare personer som skal ha tilgang. Endringer
+synkroniseres automatisk mellom aktive økter for samme konto. Kontoer kan ikke
+lese eller endre hverandres budsjett.
 Uten Supabase-variabler fortsetter appen i lokal nettlesermodus.
 
 Supabase Free-planen kan sette prosjekter på pause etter en periode uten bruk.

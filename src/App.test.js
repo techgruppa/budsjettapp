@@ -14,7 +14,7 @@ test('renders budget app', () => {
   const { container } = render(<App />);
   const element = screen.getByText(/Sett totalbudsjett:/i);
   expect(element).toBeInTheDocument();
-  expect(screen.getByText(/Versjon 1\.2\.5/i)).toBeInTheDocument();
+  expect(screen.getByText(/Versjon 1\.3\.6/i)).toBeInTheDocument();
   expect(screen.getByText(/Local-only mode/i)).toBeInTheDocument();
   expect(
     Array.from(container.querySelectorAll(".adjust input")).map((input) => input.value)

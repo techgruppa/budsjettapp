@@ -197,7 +197,7 @@ export default function App() {
 
   const applyBudgetSnapshot = (snapshot) => {
     if (!snapshot || typeof snapshot !== "object") {
-      throw new Error("The shared budget data is invalid.");
+      throw new Error("The saved budget data is invalid.");
     }
 
     const loadedWeeks = (Array.isArray(snapshot.weeks)
@@ -302,28 +302,45 @@ export default function App() {
     setCloudStatus("loading");
     setCloudError("");
 
-    const loadSharedBudget = async () => {
+    const loadUserBudget = async () => {
       try {
         let { data: row, error } = await supabase
-          .from("shared_budget")
+          .from("user_budgets")
           .select("data")
-          .eq("id", "kitchen")
+          .eq("user_id", userId)
           .maybeSingle();
 
         if (error) throw error;
 
         if (!row) {
           const { data: inserted, error: insertError } = await supabase
-            .from("shared_budget")
-            .insert({ id: "kitchen", data: localBudgetRef.current })
+            .from("user_budgets")
+            .insert({
+              user_id: userId,
+              data: {
+                totalBudget: "",
+                weeks: [
+                  { id: 1, budget: 2000, current: 2000 },
+                  { id: 2, budget: 2000, current: 2000 },
+                  { id: 3, budget: 2000, current: 2000 },
+                  { id: 4, budget: 2000, current: 2000 }
+                ],
+                items: [],
+                purchasedItems: [],
+                history: [],
+                adjustValues: [0, 0, 0, 0],
+                adjustmentLog: [],
+                removedAdjustments: []
+              }
+            })
             .select("data")
             .single();
 
           if (insertError?.code === "23505") {
             const { data: existing, error: reloadError } = await supabase
-              .from("shared_budget")
+              .from("user_budgets")
               .select("data")
-              .eq("id", "kitchen")
+              .eq("user_id", userId)
               .single();
             if (reloadError) throw reloadError;
             row = existing;
@@ -339,14 +356,14 @@ export default function App() {
         setCloudStatus("saved");
 
         channel = supabase
-          .channel("shared-kitchen-budget")
+          .channel(`user-budget-${userId}`)
           .on(
             "postgres_changes",
             {
               event: "*",
               schema: "public",
-              table: "shared_budget",
-              filter: "id=eq.kitchen"
+              table: "user_budgets",
+              filter: `user_id=eq.${userId}`
             },
             (payload) => {
               const remoteData = payload.new?.data;
@@ -382,12 +399,12 @@ export default function App() {
           });
       } catch (error) {
         if (!active) return;
-        setCloudError(`Could not load the shared budget: ${error.message}`);
+        setCloudError(`Could not load your budget: ${error.message}`);
         setCloudStatus("error");
       }
     };
 
-    loadSharedBudget();
+    loadUserBudget();
 
     return () => {
       active = false;
@@ -456,9 +473,9 @@ export default function App() {
       saveQueueRef.current = saveQueueRef.current
         .then(async () => {
           const { error } = await supabase
-            .from("shared_budget")
+            .from("user_budgets")
             .upsert({
-              id: "kitchen",
+              user_id: userId,
               data: snapshot,
               updated_at: new Date().toISOString()
             });
@@ -471,7 +488,7 @@ export default function App() {
         .catch((error) => {
           if (saveRevisionRef.current === revision) {
             setCloudStatus("error");
-            setCloudError(`Could not save the shared budget: ${error.message}`);
+            setCloudError(`Could not save your budget: ${error.message}`);
           }
         });
     }, 400);
@@ -923,14 +940,14 @@ export default function App() {
             <>
               <p className="authError" role="alert">{cloudError}</p>
               <button onClick={() => setCloudLoadRetry((retry) => retry + 1)}>
-                Retry loading shared budget
+                Retry loading your budget
               </button>
               <button className="secondaryAuthButton" onClick={signOut}>
                 Sign out
               </button>
             </>
           ) : (
-            <p>Loading shared budget...</p>
+            <p>Loading your budget...</p>
           )}
         </section>
       </main>
@@ -1167,7 +1184,7 @@ export default function App() {
         {supabase ? (
           <>
             <span>
-              Shared budget · {session.user.email} ·{" "}
+              Personal budget · {session.user.email} ·{" "}
               {cloudStatus === "syncing"
                 ? "Saving..."
                 : cloudStatus === "error"
