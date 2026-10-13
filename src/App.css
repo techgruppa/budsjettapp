@@ -34,6 +34,11 @@ h1, h2, h3, h4 {
   text-align: center;
 }
 
+.bags > .cloudStatus,
+.bags > .appFooter {
+  grid-column: 1 / -1;
+}
+
 /* HANDLELISTE PANEL */
 .panel {
   background: white;
@@ -587,8 +592,6 @@ h3 {
 .adjustmentLog {
   grid-column: 3;
   grid-row: 1;
-  position: sticky;
-  top: 16px;
   padding: 20px;
   background: white;
   border: 3px solid #1e293b;
@@ -617,6 +620,16 @@ h3 {
   background: hsl(0, 0%, 98%);
   border: 2px solid #1e293b;
   border-radius: 12px;
+}
+
+.adjustmentCreditEntry {
+  background: hsl(140, 70%, 96%);
+  border-color: hsl(140, 45%, 55%);
+}
+
+.adjustmentDebitEntry {
+  background: hsl(0, 80%, 97%);
+  border-color: hsl(0, 50%, 60%);
 }
 
 .adjustmentLogEntryHeader {
@@ -672,9 +685,31 @@ h3 {
 }
 
 .adjustmentCommentPrompt {
-  color: #64748b;
-  font-size: 12px;
-  font-style: italic;
+  padding: 7px 9px;
+  color: hsl(140, 65%, 28%);
+  background: hsl(140, 70%, 91%);
+  border: 1px dashed hsl(140, 55%, 45%);
+  border-radius: 8px;
+  font-size: 13px;
+  font-style: normal;
+  font-weight: 700;
+}
+
+.adjustmentDebitEntry .adjustmentCommentPrompt {
+  color: hsl(0, 65%, 36%);
+  background: hsl(0, 75%, 92%);
+  border-color: hsl(0, 55%, 52%);
+}
+
+.adjustmentEntryDetails:hover .adjustmentCommentPrompt,
+.adjustmentEntryDetails:focus-visible .adjustmentCommentPrompt {
+  background: hsl(140, 70%, 86%);
+  border-style: solid;
+}
+
+.adjustmentDebitEntry .adjustmentEntryDetails:hover .adjustmentCommentPrompt,
+.adjustmentDebitEntry .adjustmentEntryDetails:focus-visible .adjustmentCommentPrompt {
+  background: hsl(0, 75%, 87%);
 }
 
 .adjustmentCommentEditor {

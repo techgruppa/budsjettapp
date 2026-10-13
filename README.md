@@ -20,6 +20,12 @@ npm install
 npm start
 ```
 
+## Versjonering
+
+Versjonen følger formatet `major.minor.patch` og vises automatisk i appens
+bunntekst fra `package.json`. Øk patch-verdien for hver lokal, ikke-publisert
+endring, og minor-verdien én gang for hver push.
+
 ## Supabase: delt budsjett og innlogging
 
 1. Opprett et Supabase-prosjekt på [supabase.com](https://supabase.com/) og

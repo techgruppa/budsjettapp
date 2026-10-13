@@ -1163,6 +1163,49 @@ export default function App() {
             </div>
           );
         })}
+      <section className="cloudStatus" aria-live="polite">
+        {supabase ? (
+          <>
+            <span>
+              Shared budget · {session.user.email} ·{" "}
+              {cloudStatus === "syncing"
+                ? "Saving..."
+                : cloudStatus === "error"
+                  ? "Sync error"
+                  : realtimeConnected
+                    ? "Synced"
+                    : "Saved · live updates reconnecting"}
+            </span>
+            {cloudError && <span className="cloudError" role="alert">{cloudError}</span>}
+            {realtimeWarning && (
+              <span className="cloudError" role="status">{realtimeWarning}</span>
+            )}
+            {cloudStatus === "error" && (
+              <button onClick={() => setCloudSaveRetry((retry) => retry + 1)}>
+                Retry sync
+              </button>
+            )}
+            <button
+              className="secondaryAuthButton"
+              onClick={signOut}
+              disabled={cloudStatus === "syncing"}
+            >
+              Sign out
+            </button>
+          </>
+        ) : (
+          <span>
+            {supabaseConfigError
+              ? supabaseConfigError
+              : "Local-only mode: configure Supabase to share this budget across devices."}
+          </span>
+        )}
+      </section>
+      <footer className="appFooter">
+        &copy; {new Date().getFullYear()} Techgruppa
+        <span aria-hidden="true"> &middot; </span>
+        Versjon {packageInfo.version}
+      </footer>
       </div>
 
       <section className="adjustmentLog" aria-labelledby="adjustment-log-title">
@@ -1181,7 +1224,12 @@ export default function App() {
             {[...adjustmentLog]
               .sort((first, second) => new Date(second.timestamp) - new Date(first.timestamp))
               .map((entry) => (
-                <li key={entry.id} className="adjustmentLogEntry">
+                <li
+                  key={entry.id}
+                  className={`adjustmentLogEntry ${
+                    entry.amount >= 0 ? "adjustmentCreditEntry" : "adjustmentDebitEntry"
+                  }`}
+                >
                   <div className="adjustmentLogEntryHeader">
                     <button
                       type="button"
@@ -1243,49 +1291,6 @@ export default function App() {
       </section>
 
       </main>
-      <section className="cloudStatus" aria-live="polite">
-        {supabase ? (
-          <>
-            <span>
-              Shared budget · {session.user.email} ·{" "}
-              {cloudStatus === "syncing"
-                ? "Saving..."
-                : cloudStatus === "error"
-                  ? "Sync error"
-                  : realtimeConnected
-                    ? "Synced"
-                    : "Saved · live updates reconnecting"}
-            </span>
-            {cloudError && <span className="cloudError" role="alert">{cloudError}</span>}
-            {realtimeWarning && (
-              <span className="cloudError" role="status">{realtimeWarning}</span>
-            )}
-            {cloudStatus === "error" && (
-              <button onClick={() => setCloudSaveRetry((retry) => retry + 1)}>
-                Retry sync
-              </button>
-            )}
-            <button
-              className="secondaryAuthButton"
-              onClick={signOut}
-              disabled={cloudStatus === "syncing"}
-            >
-              Sign out
-            </button>
-          </>
-        ) : (
-          <span>
-            {supabaseConfigError
-              ? supabaseConfigError
-              : "Local-only mode: configure Supabase to share this budget across devices."}
-          </span>
-        )}
-      </section>
-      <footer className="appFooter">
-        &copy; {new Date().getFullYear()} Techgruppa
-        <span aria-hidden="true"> &middot; </span>
-        Versjon {packageInfo.version}
-      </footer>
     </>
   );
 }

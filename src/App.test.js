@@ -14,23 +14,23 @@ test('renders budget app', () => {
   const { container } = render(<App />);
   const element = screen.getByText(/Sett totalbudsjett:/i);
   expect(element).toBeInTheDocument();
-  expect(screen.getByText(/Versjon 0\.1\.0/i)).toBeInTheDocument();
+  expect(screen.getByText(/Versjon 1\.2\.5/i)).toBeInTheDocument();
   expect(screen.getByText(/Local-only mode/i)).toBeInTheDocument();
   expect(
     Array.from(container.querySelectorAll(".adjust input")).map((input) => input.value)
   ).toEqual(["0", "0", "0", "0"]);
 });
 
-test("renders cloud status below the app content", () => {
+test("renders cloud status and version beneath the week cards", () => {
   const { container } = render(<App />);
-  const appChildren = Array.from(container.children);
+  const weekCards = container.querySelector(".bags");
+  const lastWeekCard = weekCards.querySelector(".bagCard:last-of-type");
+  const cloudStatus = weekCards.querySelector(".cloudStatus");
+  const footer = weekCards.querySelector(".appFooter");
 
-  expect(appChildren.indexOf(container.querySelector("main"))).toBeLessThan(
-    appChildren.indexOf(container.querySelector(".cloudStatus"))
-  );
-  expect(appChildren.indexOf(container.querySelector(".cloudStatus"))).toBeLessThan(
-    appChildren.indexOf(container.querySelector(".appFooter"))
-  );
+  expect(lastWeekCard.nextElementSibling).toBe(cloudStatus);
+  expect(cloudStatus.nextElementSibling).toBe(footer);
+  expect(container.querySelector("main").contains(weekCards)).toBe(true);
 });
 
 test("positions weekdays in the five rows below each week heading", () => {
@@ -182,6 +182,21 @@ test("logs a negative adjustment using the selected week and keeps the comment o
       comment: ""
     })
   );
+});
+
+test("colors incoming and outgoing adjustment entries green and red", () => {
+  const { container } = render(<App />);
+  const adjustmentInputs = container.querySelectorAll(".adjust input");
+
+  fireEvent.change(adjustmentInputs[0], { target: { value: "8" } });
+  fireEvent.click(container.querySelector(".adjust button:last-child"));
+  fireEvent.change(adjustmentInputs[1], { target: { value: "5" } });
+  fireEvent.click(container.querySelectorAll(".adjust button:first-child")[1]);
+
+  const entries = container.querySelectorAll(".adjustmentLogEntry");
+  expect(entries).toHaveLength(2);
+  expect(container.querySelector(".adjustmentCreditEntry")).toBeInTheDocument();
+  expect(container.querySelector(".adjustmentDebitEntry")).toBeInTheDocument();
 });
 
 test("removing a logged adjustment reverses its balance changes and undo restores it", () => {

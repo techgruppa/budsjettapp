@@ -1,6 +1,6 @@
 {
   "name": "budsjett-app",
-  "version": "0.1.0",
+  "version": "1.2.5",
   "private": true,
   "homepage": "https://techgruppa.github.io/budsjettapp/",
   "dependencies": {
