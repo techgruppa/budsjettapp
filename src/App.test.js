@@ -33,6 +33,153 @@ test("renders cloud status and version beneath the week cards", () => {
   expect(container.querySelector("main").contains(weekCards)).toBe(true);
 });
 
+test("places budget actions inline at the top of the budget cards", () => {
+  const { container } = render(<App />);
+  const toolbar = container.querySelector(".budgetToolbar");
+  const weekCards = container.querySelector(".bagCard");
+
+  expect(toolbar.nextElementSibling).toBe(weekCards);
+  expect(toolbar.querySelectorAll("button")).toHaveLength(4);
+  expect(toolbar).toContainElement(screen.getByRole("button", { name: "← Angre" }));
+  expect(toolbar).toContainElement(screen.getByRole("button", { name: "Gjenta" }));
+  expect(toolbar).toContainElement(screen.getByRole("button", { name: "Arkiv og arkivering" }));
+  expect(toolbar).toContainElement(screen.getByRole("button", { name: "Start på nytt 🔄" }));
+  expect(screen.getByRole("button", { name: "← Angre" })).toBeDisabled();
+  expect(screen.getByRole("button", { name: "Gjenta" })).toBeDisabled();
+});
+
+test("redo reapplies the last undone purchase", () => {
+  localStorage.setItem(
+    "budget_weeks",
+    JSON.stringify([{ id: 1, budget: 100, current: 100 }])
+  );
+  localStorage.setItem(
+    "budget_items",
+    JSON.stringify([{ name: "Brød", price: "20" }])
+  );
+
+  const { container } = render(<App />);
+  const undoButton = screen.getByRole("button", { name: "← Angre" });
+  const redoButton = screen.getByRole("button", { name: "Gjenta" });
+
+  fireEvent.click(screen.getByRole("button", { name: /Registrer kjøp/ }));
+  expect(screen.getByText("80 kr")).toBeInTheDocument();
+  expect(screen.getByText("Brød")).toBeInTheDocument();
+
+  fireEvent.click(undoButton);
+  expect(screen.getByText("100 kr")).toBeInTheDocument();
+  expect(container.querySelector(".addedItemsList")).toHaveTextContent("Brød");
+  expect(redoButton).toBeEnabled();
+
+  fireEvent.click(redoButton);
+  expect(screen.getByText("80 kr")).toBeInTheDocument();
+  expect(screen.getByText("Brød")).toBeInTheDocument();
+  expect(redoButton).toBeDisabled();
+});
+
+test("creates a named checkpoint without changing the active budget", () => {
+  localStorage.setItem("budget_total", JSON.stringify("8000"));
+  localStorage.setItem(
+    "budget_weeks",
+    JSON.stringify([{ id: 1, budget: 8000, current: 6200 }])
+  );
+  localStorage.setItem(
+    "budget_items",
+    JSON.stringify([{ name: "Melk", price: "25" }])
+  );
+  localStorage.setItem(
+    "budget_purchased_items",
+    JSON.stringify([{ name: "Brød", price: "40" }])
+  );
+  render(<App />);
+  fireEvent.click(screen.getByRole("button", { name: "Arkiv og arkivering" }));
+  fireEvent.change(screen.getByLabelText("Navn på arkivpunkt"), {
+    target: { value: "Oktoberbudsjett" }
+  });
+  fireEvent.click(screen.getByRole("button", { name: "Lagre" }));
+
+  const [archive] = JSON.parse(localStorage.getItem("budget_archives"));
+  expect(archive.name).toBe("Oktoberbudsjett");
+  expect(archive.budget).toMatchObject({
+    totalBudget: "8000",
+    weeks: [{ id: 1, budget: 8000, current: 6200 }],
+    items: [{ name: "Melk", price: "25" }],
+    purchasedItems: [{ name: "Brød", price: "40" }]
+  });
+  expect(screen.getByPlaceholderText("Totalbeløp...").value).toBe("8000");
+  expect(screen.getByText("Melk")).toBeInTheDocument();
+  expect(screen.getByText("Brød")).toBeInTheDocument();
+  expect(screen.getByRole("dialog")).toBeInTheDocument();
+  expect(screen.getByText("Oktoberbudsjett")).toBeInTheDocument();
+  expect(screen.getByText(/1 registrerte kjøp/)).toBeInTheDocument();
+});
+
+test("restores an archived budget and archives the active budget first", () => {
+  const archive = {
+    id: "archive-1",
+    archivedAt: "2026-01-01T12:00:00.000Z",
+    budget: {
+      totalBudget: "6000",
+      weeks: [{ id: 1, budget: 6000, current: 4500 }],
+      items: [],
+      purchasedItems: [{ name: "Frukt", price: "30" }],
+      history: [],
+      adjustValues: [0],
+      adjustmentLog: [],
+      removedAdjustments: []
+    }
+  };
+  localStorage.setItem("budget_total", JSON.stringify("3000"));
+  localStorage.setItem("budget_archives", JSON.stringify([archive]));
+  const confirmSpy = jest.spyOn(window, "confirm").mockReturnValue(true);
+
+  render(<App />);
+  fireEvent.click(screen.getByRole("button", { name: "Arkiv og arkivering" }));
+  fireEvent.click(screen.getByRole("button", { name: /Gjenopprett arkiv/ }));
+
+  expect(screen.getByPlaceholderText("Totalbeløp...").value).toBe("6000");
+  expect(screen.getByText(/Frukt/)).toBeInTheDocument();
+  expect(JSON.parse(localStorage.getItem("budget_archives"))).toHaveLength(2);
+  expect(
+    JSON.parse(localStorage.getItem("budget_archives"))[0].budget.totalBudget
+  ).toBe("3000");
+
+  confirmSpy.mockRestore();
+});
+
+test("deletes only the selected archive after confirmation", () => {
+  const firstArchive = {
+    id: "archive-1",
+    archivedAt: "2026-01-01T12:00:00.000Z",
+    budget: { totalBudget: "6000", purchasedItems: [] }
+  };
+  const secondArchive = {
+    id: "archive-2",
+    archivedAt: "2026-02-01T12:00:00.000Z",
+    budget: { totalBudget: "9000", purchasedItems: [] }
+  };
+  localStorage.setItem(
+    "budget_archives",
+    JSON.stringify([firstArchive, secondArchive])
+  );
+  const confirmSpy = jest.spyOn(window, "confirm").mockReturnValue(true);
+
+  render(<App />);
+  fireEvent.click(screen.getByRole("button", { name: "Arkiv og arkivering" }));
+  fireEvent.click(screen.getAllByRole("button", { name: /Slett arkiv/ })[0]);
+
+  expect(confirmSpy).toHaveBeenCalledWith(
+    "Slette dette arkivpunktet permanent?"
+  );
+  expect(JSON.parse(localStorage.getItem("budget_archives"))).toEqual([
+    secondArchive
+  ]);
+  expect(screen.queryByText(/Totalbudsjett: 6000 kr/)).not.toBeInTheDocument();
+  expect(screen.getByText(/Totalbudsjett: 9000 kr/)).toBeInTheDocument();
+
+  confirmSpy.mockRestore();
+});
+
 test("positions weekdays in the five rows below each week heading", () => {
   const { container } = render(<App />);
   const weekCards = container.querySelectorAll(".bagCard");
@@ -199,7 +346,7 @@ test("colors incoming and outgoing adjustment entries green and red", () => {
   expect(container.querySelector(".adjustmentDebitEntry")).toBeInTheDocument();
 });
 
-test("removing a logged adjustment reverses its balance changes and undo restores it", () => {
+test("the shared undo and redo buttons restore a removed adjustment", () => {
   localStorage.setItem(
     "budget_weeks",
     JSON.stringify([
@@ -228,10 +375,17 @@ test("removing a logged adjustment reverses its balance changes and undo restore
   expect(screen.queryByText("-12 kr")).not.toBeInTheDocument();
   expect(screen.getByText("5 kr")).toBeInTheDocument();
   expect(screen.getByText("10 kr")).toBeInTheDocument();
+  expect(screen.queryByRole("button", { name: "Angre fjerning" })).not.toBeInTheDocument();
 
-  fireEvent.click(screen.getByRole("button", { name: "Angre fjerning" }));
+  fireEvent.click(screen.getByRole("button", { name: "← Angre" }));
 
   expect(screen.getByText("-12 kr")).toBeInTheDocument();
   expect(screen.getByText("0 kr")).toBeInTheDocument();
   expect(screen.getByText("3 kr")).toBeInTheDocument();
+
+  fireEvent.click(screen.getByRole("button", { name: "Gjenta" }));
+
+  expect(screen.queryByText("-12 kr")).not.toBeInTheDocument();
+  expect(screen.getByText("5 kr")).toBeInTheDocument();
+  expect(screen.getByText("10 kr")).toBeInTheDocument();
 });

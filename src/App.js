@@ -142,6 +142,14 @@ export default function App() {
       return [];
     }
   });
+  const [redoHistory, setRedoHistory] = useState(() => {
+    try {
+      const saved = localStorage.getItem("budget_redo_history");
+      return saved ? JSON.parse(saved) : [];
+    } catch (e) {
+      return [];
+    }
+  });
 
   const [adjustmentLog, setAdjustmentLog] = useState(() => {
     try {
@@ -163,6 +171,17 @@ export default function App() {
       return [];
     }
   });
+  const [archives, setArchives] = useState(() => {
+    try {
+      const saved = localStorage.getItem("budget_archives");
+      const entries = saved ? JSON.parse(saved) : [];
+      return Array.isArray(entries) ? entries : [];
+    } catch (e) {
+      return [];
+    }
+  });
+  const [archiveManagerOpen, setArchiveManagerOpen] = useState(false);
+  const [archiveName, setArchiveName] = useState("");
 
   const [adjustValues, setAdjustValues] = useState(() => {
     try {
@@ -183,16 +202,18 @@ export default function App() {
     return [0, 0, 0, 0];
   });
 
-  const budgetSnapshot = {
+  const activeBudgetSnapshot = {
     totalBudget,
     weeks,
     items,
     purchasedItems,
     history,
+    redoHistory,
     adjustValues,
     adjustmentLog,
     removedAdjustments
   };
+  const budgetSnapshot = { ...activeBudgetSnapshot, archives };
   localBudgetRef.current = budgetSnapshot;
 
   const applyBudgetSnapshot = (snapshot) => {
@@ -232,12 +253,14 @@ export default function App() {
         : []
     );
     setHistory(Array.isArray(snapshot.history) ? snapshot.history : []);
+    setRedoHistory(Array.isArray(snapshot.redoHistory) ? snapshot.redoHistory : []);
     setAdjustmentLog(
       Array.isArray(snapshot.adjustmentLog) ? snapshot.adjustmentLog : []
     );
     setRemovedAdjustments(
       Array.isArray(snapshot.removedAdjustments) ? snapshot.removedAdjustments : []
     );
+    setArchives(Array.isArray(snapshot.archives) ? snapshot.archives : []);
     setAdjustValues(
       Array.isArray(snapshot.adjustValues)
         ? snapshot.adjustValues.map((value) =>
@@ -330,7 +353,9 @@ export default function App() {
                 history: [],
                 adjustValues: [0, 0, 0, 0],
                 adjustmentLog: [],
-                removedAdjustments: []
+                removedAdjustments: [],
+                redoHistory: [],
+                archives: []
               }
             })
             .select("data")
@@ -433,6 +458,10 @@ export default function App() {
   }, [history]);
 
   useEffect(() => {
+    localStorage.setItem("budget_redo_history", JSON.stringify(redoHistory));
+  }, [redoHistory]);
+
+  useEffect(() => {
     localStorage.setItem("budget_adjust_values", JSON.stringify(adjustValues));
   }, [adjustValues]);
 
@@ -446,6 +475,10 @@ export default function App() {
       JSON.stringify(removedAdjustments)
     );
   }, [removedAdjustments]);
+
+  useEffect(() => {
+    localStorage.setItem("budget_archives", JSON.stringify(archives));
+  }, [archives]);
 
   useEffect(() => {
     if (!supabase || !userId || !cloudReady) return undefined;
@@ -462,9 +495,11 @@ export default function App() {
       items,
       purchasedItems,
       history,
+      redoHistory,
       adjustValues,
       adjustmentLog,
-      removedAdjustments
+      removedAdjustments,
+      archives
     };
     setCloudStatus("syncing");
     setCloudError("");
@@ -502,9 +537,11 @@ export default function App() {
     items,
     purchasedItems,
     history,
+    redoHistory,
     adjustValues,
     adjustmentLog,
     removedAdjustments,
+    archives,
     cloudSaveRetry
   ]);
 
@@ -590,6 +627,7 @@ export default function App() {
   const distributeBudget = () => {
     const total = parseFloat(totalBudget);
     if (!total || total <= 0) return;
+    setRedoHistory([]);
 
     const perWeek = Math.floor(total / weeks.length);
 
@@ -616,7 +654,7 @@ export default function App() {
     if (e) e.preventDefault();
     if (!newItem.name.trim()) return;
 
-
+    setRedoHistory([]);
 
     const priceVal = parseFloat(normalizeMoneyInput(newItem.price)) || 0;
     setItems([...(items || []), { name: newItem.name.trim(), price: priceVal.toString() }]);
@@ -626,6 +664,7 @@ export default function App() {
 
   function addToCart(name, price) {
     if (!name.trim()) return;
+    setRedoHistory([]);
 
     const newItemObj = {
       name: name,
@@ -640,6 +679,7 @@ export default function App() {
 
 
   const removeItem = (index) => {
+    setRedoHistory([]);
     const newItems = (items || []).filter((_, i) => i !== index);
     setItems(newItems);
   };
@@ -668,9 +708,12 @@ export default function App() {
       {
         weeks: weeks.map(w => ({ ...w })),
         items: [...(items || [])],
-        purchasedItems: [...(purchasedItems || [])]
+        purchasedItems: [...(purchasedItems || [])],
+        adjustmentLog: [...adjustmentLog],
+        removedAdjustments: [...removedAdjustments]
       }
     ]);
+    setRedoHistory([]);
 
     setWeeks(newWeeks);
     setPurchasedItems([...(purchasedItems || []), ...(items || [])]); // ✅ flytt til kjøpt
@@ -683,12 +726,46 @@ export default function App() {
 
     const prev = history[history.length - 1];
 
+    setRedoHistory([
+      ...redoHistory,
+      {
+        weeks: weeks.map((week) => ({ ...week })),
+        items: [...items],
+        purchasedItems: [...purchasedItems],
+        adjustmentLog: [...adjustmentLog],
+        removedAdjustments: [...removedAdjustments]
+      }
+    ]);
     setWeeks(prev.weeks || []);
     setItems(prev.items || []);
     setPurchasedItems(prev.purchasedItems || []);
+    setAdjustmentLog(prev.adjustmentLog || adjustmentLog);
+    setRemovedAdjustments(prev.removedAdjustments || removedAdjustments);
 
     setHistory(history.slice(0, -1));
 
+  };
+
+  const redo = () => {
+    if (redoHistory.length === 0) return;
+
+    const next = redoHistory[redoHistory.length - 1];
+    setHistory([
+      ...history,
+      {
+        weeks: weeks.map((week) => ({ ...week })),
+        items: [...items],
+        purchasedItems: [...purchasedItems],
+        adjustmentLog: [...adjustmentLog],
+        removedAdjustments: [...removedAdjustments]
+      }
+    ]);
+    setWeeks(next.weeks || []);
+    setItems(next.items || []);
+    setPurchasedItems(next.purchasedItems || []);
+    setAdjustmentLog(next.adjustmentLog || adjustmentLog);
+    setRemovedAdjustments(next.removedAdjustments || removedAdjustments);
+    setRedoHistory(redoHistory.slice(0, -1));
   };
 
   // ✅ overfør rest til neste uke
@@ -704,9 +781,12 @@ export default function App() {
       {
         weeks: weeks.map(w => ({ ...w })),
         items: [...(items || [])],
-        purchasedItems: [...(purchasedItems || [])]
+        purchasedItems: [...(purchasedItems || [])],
+        adjustmentLog: [...adjustmentLog],
+        removedAdjustments: [...removedAdjustments]
       }
     ]);
+    setRedoHistory([]);
 
     const newWeeks = weeks.map((w, i) => {
       if (i === index) {
@@ -725,6 +805,7 @@ export default function App() {
   const adjustWeek = (index, amount) => {
     const roundedAmount = roundCurrency(amount);
     if (!roundedAmount) return;
+    setRedoHistory([]);
 
     const newWeeks = applyManualAdjustment(weeks, index, roundedAmount);
     const changes = newWeeks.flatMap((week, weekIndex) => {
@@ -772,6 +853,7 @@ export default function App() {
   const removeAdjustment = (entryId) => {
     const entry = adjustmentLog.find((adjustment) => adjustment.id === entryId);
     if (!entry) return;
+    setRedoHistory([]);
 
     const entryIndex = weeks.findIndex((week) => week.id === entry.weekId);
     if (entryIndex < 0) return;
@@ -785,6 +867,16 @@ export default function App() {
           }
         );
 
+    setHistory([
+        ...history,
+        {
+          weeks: weeks.map((week) => ({ ...week })),
+          items: [...items],
+          purchasedItems: [...purchasedItems],
+          adjustmentLog: [...adjustmentLog],
+          removedAdjustments: [...removedAdjustments]
+        }
+    ]);
     setWeeks((currentWeeks) =>
       currentWeeks.map((week) => {
         const change = changes.find((item) => item.weekId === week.id);
@@ -797,22 +889,7 @@ export default function App() {
       entries.filter((adjustment) => adjustment.id !== entryId)
     );
     setRemovedAdjustments((removed) => [...removed, { entry, changes }]);
-  };
-
-  const undoRemoveAdjustment = () => {
-    const removed = removedAdjustments[removedAdjustments.length - 1];
-    if (!removed) return;
-
-    setWeeks((currentWeeks) =>
-      currentWeeks.map((week) => {
-        const change = removed.changes.find((item) => item.weekId === week.id);
-        return change
-          ? { ...week, current: roundCurrency(week.current + change.delta) }
-          : week;
-      })
-    );
-    setAdjustmentLog((entries) => [...entries, removed.entry]);
-    setRemovedAdjustments((entries) => entries.slice(0, -1));
+    setRedoHistory([]);
   };
 
   const updateAdjustValue = (index, value) => {
@@ -822,24 +899,74 @@ export default function App() {
     setAdjustValues(newValues);
   };
 
-  // ✅ Nullstill all data og start på nytt
+  const startFreshBudget = () => {
+    setTotalBudget("");
+    setWeeks([
+      { id: 1, budget: 2000, current: 2000 },
+      { id: 2, budget: 2000, current: 2000 },
+      { id: 3, budget: 2000, current: 2000 },
+      { id: 4, budget: 2000, current: 2000 }
+    ]);
+    setItems([]);
+    setPurchasedItems([]);
+    setHistory([]);
+    setRedoHistory([]);
+    setAdjustValues([0, 0, 0, 0]);
+    setAdjustmentLog([]);
+    setEditingAdjustmentId(null);
+    setAdjustmentCommentDraft("");
+    setRemovedAdjustments([]);
+  };
+
+  const makeArchive = (budget, name) => ({
+    id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+    archivedAt: new Date().toISOString(),
+    name,
+    budget
+  });
+
+  const saveBudgetCheckpoint = () => {
+    const name = archiveName.trim();
+    if (!name) return;
+
+    setArchives((currentArchives) => [
+      makeArchive(activeBudgetSnapshot, name),
+      ...currentArchives
+    ]);
+    setArchiveName("");
+  };
+
+  const deleteArchive = (archiveId) => {
+    if (!window.confirm("Slette dette arkivpunktet permanent?")) return;
+
+    setArchives((currentArchives) =>
+      currentArchives.filter((archive) => archive.id !== archiveId)
+    );
+  };
+
+  const restoreArchive = (archive) => {
+    if (
+      !window.confirm(
+        "Gjenopprette dette arkivet? Det aktive budsjettet lagres også i arkivet først."
+      )
+    ) {
+      return;
+    }
+
+    const nextArchives = [
+      makeArchive(activeBudgetSnapshot, "Automatically saved before restore"),
+      ...archives
+    ];
+    applyBudgetSnapshot(archive.budget);
+    setArchives(nextArchives);
+    setEditingAdjustmentId(null);
+    setAdjustmentCommentDraft("");
+  };
+
+  // Nullstill all data uten å lagre en kopi.
   const resetAll = () => {
     if (window.confirm("Er du sikker på at du vil slette all data og starte på nytt?")) {
-      setTotalBudget("");
-      setWeeks([
-        { id: 1, budget: 2000, current: 2000 },
-        { id: 2, budget: 2000, current: 2000 },
-        { id: 3, budget: 2000, current: 2000 },
-        { id: 4, budget: 2000, current: 2000 }
-      ]);
-      setItems([]);
-      setPurchasedItems([]);
-      setHistory([]);
-      setAdjustValues([0, 0, 0, 0]);
-      setAdjustmentLog([]);
-      setEditingAdjustmentId(null);
-      setAdjustmentCommentDraft("");
-      setRemovedAdjustments([]);
+      startFreshBudget();
     }
   };
 
@@ -1065,17 +1192,27 @@ export default function App() {
         </div>
 
         <div className="totalDisplay">Totalt handlet: {purchasedTotal} kr</div>
-
-        <div className="navButtons">
-          <button onClick={undo}>← Angre</button>
-        </div>
-        <button className="resetBtn" onClick={resetAll}>
-          Start på nytt 🔄
-        </button>
       </div>
 
       {/* ✅ SEKKER */}
       <div className="bags">
+        <div className="budgetToolbar" aria-label="Angre og gjør om">
+          <button onClick={undo} disabled={history.length === 0}>
+            ← Angre
+          </button>
+          <button onClick={redo} disabled={redoHistory.length === 0}>
+            Gjenta
+          </button>
+          <button
+            className="archiveBtn"
+            onClick={() => setArchiveManagerOpen(true)}
+          >
+            Arkiv og arkivering
+          </button>
+          <button className="resetBtn" onClick={resetAll}>
+            Start på nytt 🔄
+          </button>
+        </div>
         {weeks.map((week, i) => {
           const percent = Math.max(0, (week.current / week.budget) * 100);
           const fillPercent = Math.min(100, percent);
@@ -1225,15 +1362,9 @@ export default function App() {
       </footer>
       </div>
 
+      <aside className="historySidebar">
       <section className="adjustmentLog" aria-labelledby="adjustment-log-title">
         <h2 id="adjustment-log-title">Inn og Ut</h2>
-        <button
-          className="undoAdjustmentBtn"
-          onClick={undoRemoveAdjustment}
-          disabled={removedAdjustments.length === 0}
-        >
-          Angre fjerning
-        </button>
         {adjustmentLog.length === 0 ? (
           <p className="emptyListText">Ingen manuelle justeringer ennå.</p>
         ) : (
@@ -1306,6 +1437,100 @@ export default function App() {
           </ol>
         )}
       </section>
+      </aside>
+
+      {archiveManagerOpen && (
+        <div
+          className="archiveModalBackdrop"
+          onMouseDown={(event) => {
+            if (event.target === event.currentTarget) {
+              setArchiveManagerOpen(false);
+            }
+          }}
+        >
+          <section
+            className="archiveModal"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="archive-modal-title"
+          >
+            <div className="archiveModalHeader">
+              <h2 id="archive-modal-title">Arkiv og arkivering</h2>
+              <button
+                type="button"
+                className="archiveModalClose"
+                aria-label="Lukk arkiv"
+                onClick={() => setArchiveManagerOpen(false)}
+              >
+                ×
+              </button>
+            </div>
+            <form
+              className="archiveCreateForm"
+              onSubmit={(event) => {
+                event.preventDefault();
+                saveBudgetCheckpoint();
+              }}
+            >
+              <label htmlFor="archive-name">Navn på arkivpunkt</label>
+              <div>
+                <input
+                  id="archive-name"
+                  value={archiveName}
+                  onChange={(event) => setArchiveName(event.target.value)}
+                  placeholder="F.eks. Oktoberbudsjett"
+                  maxLength="80"
+                  required
+                />
+                <button type="submit" disabled={!archiveName.trim()}>
+                  Lagre
+                </button>
+              </div>
+            </form>
+            <h3>Tidligere arkivpunkter</h3>
+            {archives.length === 0 ? (
+              <p className="emptyListText">Ingen arkivpunkter ennå.</p>
+            ) : (
+              <ol className="budgetArchiveEntries">
+                {archives.map((archive) => {
+                  const archivedAt = new Date(archive.archivedAt || "");
+                  const formattedDate = archivedAt.toLocaleString("nb-NO");
+                  return (
+                    <li className="budgetArchiveEntry" key={archive.id}>
+                      <strong>{archive.name || formattedDate}</strong>
+                      <time dateTime={archive.archivedAt}>
+                        {formattedDate}
+                      </time>
+                      <p>
+                        Totalbudsjett: {archive.budget?.totalBudget || "Ikke angitt"} kr
+                        {" · "}
+                        {archive.budget?.purchasedItems?.length || 0} registrerte kjøp
+                      </p>
+                      <div className="budgetArchiveActions">
+                        <button
+                          type="button"
+                          onClick={() => restoreArchive(archive)}
+                          aria-label={`Gjenopprett arkiv ${archive.name || formattedDate}`}
+                        >
+                          Last inn
+                        </button>
+                        <button
+                          type="button"
+                          className="deleteArchiveBtn"
+                          onClick={() => deleteArchive(archive.id)}
+                          aria-label={`Slett arkiv ${archive.name || formattedDate}`}
+                        >
+                          Slett
+                        </button>
+                      </div>
+                    </li>
+                  );
+                })}
+              </ol>
+            )}
+          </section>
+        </div>
+      )}
 
       </main>
     </>
