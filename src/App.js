@@ -162,6 +162,12 @@ export default function App() {
   });
   const [editingAdjustmentId, setEditingAdjustmentId] = useState(null);
   const [adjustmentCommentDraft, setAdjustmentCommentDraft] = useState("");
+  const [showAdjustmentForm, setShowAdjustmentForm] = useState(false);
+  const [newAdjustment, setNewAdjustment] = useState({
+    weekId: "",
+    amount: "",
+    comment: ""
+  });
   const [removedAdjustments, setRemovedAdjustments] = useState(() => {
     try {
       const saved = localStorage.getItem("budget_removed_adjustments");
@@ -294,7 +300,7 @@ export default function App() {
     supabase.auth.getSession().then(({ data, error }) => {
       if (!active) return;
       if (error) {
-        setAuthError(`Could not restore your sign-in: ${error.message}`);
+        setAuthError(`Kunne ikke gjenopprette innloggingen: ${error.message}`);
       } else {
         authenticatedUserIdRef.current = data.session?.user?.id || null;
         setSession(data.session);
@@ -303,7 +309,7 @@ export default function App() {
       setAuthLoading(false);
     }).catch((error) => {
       if (!active) return;
-      setAuthError(`Could not restore your sign-in: ${error.message}`);
+      setAuthError(`Kunne ikke gjenopprette innloggingen: ${error.message}`);
       setAuthLoading(false);
     });
 
@@ -406,7 +412,7 @@ export default function App() {
                 setCloudStatus("saved");
                 setCloudError("");
               } catch (error) {
-                setCloudError(`Could not apply shared changes: ${error.message}`);
+                setCloudError(`Kunne ikke bruke delte endringer: ${error.message}`);
                 setCloudStatus("error");
               }
             }
@@ -424,7 +430,7 @@ export default function App() {
           });
       } catch (error) {
         if (!active) return;
-        setCloudError(`Could not load your budget: ${error.message}`);
+        setCloudError(`Kunne ikke laste inn budsjettet: ${error.message}`);
         setCloudStatus("error");
       }
     };
@@ -523,7 +529,7 @@ export default function App() {
         .catch((error) => {
           if (saveRevisionRef.current === revision) {
             setCloudStatus("error");
-            setCloudError(`Could not save your budget: ${error.message}`);
+            setCloudError(`Kunne ikke lagre budsjettet: ${error.message}`);
           }
         });
     }, 400);
@@ -556,9 +562,9 @@ export default function App() {
         email: authEmail.trim(),
         password: authPassword
       });
-      if (error) setAuthError(`Could not sign in: ${error.message}`);
+      if (error) setAuthError(`Kunne ikke logge inn: ${error.message}`);
     } catch (error) {
-      setAuthError(`Could not sign in: ${error.message}`);
+      setAuthError(`Kunne ikke logge inn: ${error.message}`);
     } finally {
       setAuthBusy(false);
     }
@@ -568,7 +574,7 @@ export default function App() {
     setAuthError("");
     setAuthMessage("");
     if (!authEmail.trim()) {
-      setAuthError("Enter your email address first.");
+      setAuthError("Skriv inn e-postadressen din først.");
       return;
     }
 
@@ -579,12 +585,12 @@ export default function App() {
         { redirectTo: window.location.origin + window.location.pathname }
       );
       if (error) {
-        setAuthError(`Could not request a password reset: ${error.message}`);
+        setAuthError(`Kunne ikke be om tilbakestilling av passord: ${error.message}`);
       } else {
-        setAuthMessage("If that account exists, a password reset email has been sent.");
+        setAuthMessage("Hvis kontoen finnes, er det sendt en e-post for å tilbakestille passordet.");
       }
     } catch (error) {
-      setAuthError(`Could not request a password reset: ${error.message}`);
+      setAuthError(`Kunne ikke be om tilbakestilling av passord: ${error.message}`);
     } finally {
       setAuthBusy(false);
     }
@@ -594,9 +600,9 @@ export default function App() {
     setAuthError("");
     try {
       const { error } = await supabase.auth.signOut();
-      if (error) setCloudError(`Could not sign out: ${error.message}`);
+      if (error) setCloudError(`Kunne ikke logge ut: ${error.message}`);
     } catch (error) {
-      setCloudError(`Could not sign out: ${error.message}`);
+      setCloudError(`Kunne ikke logge ut: ${error.message}`);
     }
   };
 
@@ -609,15 +615,15 @@ export default function App() {
     try {
       const { error } = await supabase.auth.updateUser({ password: newPassword });
       if (error) {
-        setAuthError(`Could not save your password: ${error.message}`);
+        setAuthError(`Kunne ikke lagre passordet: ${error.message}`);
       } else {
         setPasswordSetupRequired(false);
         setNewPassword("");
         window.history.replaceState(null, "", window.location.pathname);
-        setAuthMessage("Your password is set.");
+        setAuthMessage("Passordet er lagret.");
       }
     } catch (error) {
-      setAuthError(`Could not save your password: ${error.message}`);
+      setAuthError(`Kunne ikke lagre passordet: ${error.message}`);
     } finally {
       setAuthBusy(false);
     }
@@ -802,10 +808,9 @@ export default function App() {
   };
 
   // ✅ +- med flyt
-  const adjustWeek = (index, amount) => {
+  const adjustWeek = (index, amount, comment = "") => {
     const roundedAmount = roundCurrency(amount);
-    if (!roundedAmount) return;
-    setRedoHistory([]);
+    if (!roundedAmount || !weeks[index]) return;
 
     const newWeeks = applyManualAdjustment(weeks, index, roundedAmount);
     const changes = newWeeks.flatMap((week, weekIndex) => {
@@ -813,6 +818,17 @@ export default function App() {
       return delta === 0 ? [] : [{ weekId: week.id, delta }];
     });
 
+    setHistory([
+      ...history,
+      {
+        weeks: weeks.map((week) => ({ ...week })),
+        items: [...items],
+        purchasedItems: [...purchasedItems],
+        adjustmentLog: [...adjustmentLog],
+        removedAdjustments: [...removedAdjustments]
+      }
+    ]);
+    setRedoHistory([]);
     setWeeks(newWeeks);
     setAdjustmentLog([
       ...adjustmentLog,
@@ -821,10 +837,25 @@ export default function App() {
         timestamp: new Date().toISOString(),
         weekId: weeks[index].id,
         amount: roundedAmount,
-        comment: "",
+        comment,
         changes
       }
     ]);
+  };
+
+  const addAdjustmentEntry = (event) => {
+    event.preventDefault();
+    const weekIndex = weeks.findIndex(
+      (week) => String(week.id) === newAdjustment.weekId
+    );
+    const amount = Number(newAdjustment.amount);
+    if (weekIndex < 0 || !Number.isFinite(amount) || roundCurrency(amount) === 0) {
+      return;
+    }
+
+    adjustWeek(weekIndex, amount, newAdjustment.comment.trim());
+    setNewAdjustment({ weekId: String(weeks[0]?.id ?? ""), amount: "", comment: "" });
+    setShowAdjustmentForm(false);
   };
 
   const editAdjustmentComment = (entry) => {
@@ -975,7 +1006,7 @@ export default function App() {
       <main className="authPage">
         <section className="authPanel" aria-live="polite">
           <h1>Kjøkkenbudsjett</h1>
-          <p>Checking your sign-in...</p>
+          <p>Kontrollerer innloggingen din ...</p>
         </section>
       </main>
     );
@@ -986,14 +1017,14 @@ export default function App() {
       <main className="authPage">
         <section className="authPanel">
           <h1>Kjøkkenbudsjett</h1>
-          <p>Sign in to access the shared kitchen budget.</p>
+          <p>Logg inn for å få tilgang til kjøkkenbudsjettet.</p>
           {supabaseConfigError && (
             <p className="authError" role="alert">{supabaseConfigError}</p>
           )}
           {authError && <p className="authError" role="alert">{authError}</p>}
           {authMessage && <p className="authMessage" role="status">{authMessage}</p>}
           <form onSubmit={signIn}>
-            <label htmlFor="auth-email">Email</label>
+            <label htmlFor="auth-email">E-post</label>
             <input
               id="auth-email"
               type="email"
@@ -1002,7 +1033,7 @@ export default function App() {
               onChange={(event) => setAuthEmail(event.target.value)}
               required
             />
-            <label htmlFor="auth-password">Password</label>
+            <label htmlFor="auth-password">Passord</label>
             <input
               id="auth-password"
               type="password"
@@ -1012,7 +1043,7 @@ export default function App() {
               required
             />
             <button type="submit" disabled={authBusy}>
-              {authBusy ? "Signing in..." : "Sign in"}
+              {authBusy ? "Logger inn ..." : "Logg inn"}
             </button>
           </form>
           <button
@@ -1021,10 +1052,10 @@ export default function App() {
             onClick={requestPasswordReset}
             disabled={authBusy}
           >
-            Forgot password?
+            Glemt passordet?
           </button>
           <p className="authHint">
-            Accounts are invite-only. Ask a budget administrator for access.
+            Kontoer er kun tilgjengelige via invitasjon. Kontakt en budsjettadministrator for å få tilgang.
           </p>
         </section>
       </main>
@@ -1035,11 +1066,11 @@ export default function App() {
     return (
       <main className="authPage">
         <section className="authPanel">
-          <h1>Set your password</h1>
-          <p>Choose a password for your kitchen budget account.</p>
+          <h1>Velg passord</h1>
+          <p>Velg et passord for kjøkkenbudsjettkontoen din.</p>
           {authError && <p className="authError" role="alert">{authError}</p>}
           <form onSubmit={saveNewPassword}>
-            <label htmlFor="new-password">New password</label>
+            <label htmlFor="new-password">Nytt passord</label>
             <input
               id="new-password"
               type="password"
@@ -1050,7 +1081,7 @@ export default function App() {
               required
             />
             <button type="submit" disabled={authBusy}>
-              {authBusy ? "Saving..." : "Set password"}
+              {authBusy ? "Lagrer ..." : "Lagre passord"}
             </button>
           </form>
         </section>
@@ -1067,10 +1098,10 @@ export default function App() {
             <>
               <p className="authError" role="alert">{cloudError}</p>
               <button onClick={() => setCloudLoadRetry((retry) => retry + 1)}>
-                Retry loading your budget
+                Prøv å laste inn budsjettet på nytt
               </button>
               <button className="secondaryAuthButton" onClick={signOut}>
-                Sign out
+                Logg ut
               </button>
             </>
           ) : (
@@ -1197,21 +1228,34 @@ export default function App() {
       {/* ✅ SEKKER */}
       <div className="bags">
         <div className="budgetToolbar" aria-label="Angre og gjør om">
-          <button onClick={undo} disabled={history.length === 0}>
-            ← Angre
-          </button>
-          <button onClick={redo} disabled={redoHistory.length === 0}>
-            Gjenta
-          </button>
-          <button
-            className="archiveBtn"
-            onClick={() => setArchiveManagerOpen(true)}
-          >
-            Arkiv og arkivering
-          </button>
-          <button className="resetBtn" onClick={resetAll}>
-            Start på nytt 🔄
-          </button>
+          <div className="budgetToolbarGroup budgetToolbarLeft">
+            <button onClick={undo} disabled={history.length === 0}>
+              ← Angre
+            </button>
+            <button onClick={redo} disabled={redoHistory.length === 0}>
+              Gjenta →
+            </button>
+            <button
+              className="archiveBtn"
+              onClick={() => setArchiveManagerOpen(true)}
+            >
+              Arkiv og arkivering
+            </button>
+          </div>
+          <div className="budgetToolbarGroup budgetToolbarRight">
+            <button className="resetBtn" onClick={resetAll}>
+              Start på nytt 🔄
+            </button>
+            {supabase && session && (
+              <button
+                className="secondaryAuthButton"
+                onClick={signOut}
+                disabled={cloudStatus === "syncing"}
+              >
+                Logg ut
+              </button>
+            )}
+          </div>
         </div>
         {weeks.map((week, i) => {
           const percent = Math.max(0, (week.current / week.budget) * 100);
@@ -1321,14 +1365,14 @@ export default function App() {
         {supabase ? (
           <>
             <span>
-              Personal budget · {session.user.email} ·{" "}
+              Personlig budsjett · {session.user.email} ·{" "}
               {cloudStatus === "syncing"
-                ? "Saving..."
+                ? "Lagrer ..."
                 : cloudStatus === "error"
-                  ? "Sync error"
+                  ? "Synkroniseringsfeil"
                   : realtimeConnected
-                    ? "Synced"
-                    : "Saved · live updates reconnecting"}
+                    ? "Synkronisert"
+                    : "Lagret · kobler til sanntidsoppdateringer"}
             </span>
             {cloudError && <span className="cloudError" role="alert">{cloudError}</span>}
             {realtimeWarning && (
@@ -1336,22 +1380,15 @@ export default function App() {
             )}
             {cloudStatus === "error" && (
               <button onClick={() => setCloudSaveRetry((retry) => retry + 1)}>
-                Retry sync
+                Prøv synkronisering på nytt
               </button>
             )}
-            <button
-              className="secondaryAuthButton"
-              onClick={signOut}
-              disabled={cloudStatus === "syncing"}
-            >
-              Sign out
-            </button>
           </>
         ) : (
           <span>
             {supabaseConfigError
               ? supabaseConfigError
-              : "Local-only mode: configure Supabase to share this budget across devices."}
+              : "Kun lokal lagring: konfigurer Supabase for å dele budsjettet mellom enheter."}
           </span>
         )}
       </section>
@@ -1365,6 +1402,76 @@ export default function App() {
       <aside className="historySidebar">
       <section className="adjustmentLog" aria-labelledby="adjustment-log-title">
         <h2 id="adjustment-log-title">Inn og Ut</h2>
+        <button
+          type="button"
+          className="addAdjustmentEntryBtn"
+          onClick={() => setShowAdjustmentForm((isOpen) => !isOpen)}
+          aria-expanded={showAdjustmentForm}
+          aria-controls="add-adjustment-form"
+        >
+          {showAdjustmentForm ? "Avbryt ny post" : "Legg til post"}
+        </button>
+        {showAdjustmentForm && (
+          <form
+            id="add-adjustment-form"
+            className="addAdjustmentForm"
+            onSubmit={addAdjustmentEntry}
+          >
+            <label htmlFor="new-adjustment-week">Uke</label>
+            <select
+              id="new-adjustment-week"
+              value={newAdjustment.weekId || String(weeks[0]?.id ?? "")}
+              onChange={(event) =>
+                setNewAdjustment((current) => ({
+                  ...current,
+                  weekId: event.target.value
+                }))
+              }
+              required
+            >
+              {weeks.map((week) => (
+                <option key={week.id} value={week.id}>
+                  Uke {week.id}
+                </option>
+              ))}
+            </select>
+            <label htmlFor="new-adjustment-amount">Beløp (+ inn, − ut)</label>
+            <input
+              id="new-adjustment-amount"
+              type="number"
+              step="0.01"
+              value={newAdjustment.amount}
+              onChange={(event) =>
+                setNewAdjustment((current) => ({
+                  ...current,
+                  amount: event.target.value
+                }))
+              }
+              placeholder="F.eks. 250 eller -75"
+              required
+            />
+            <label htmlFor="new-adjustment-comment">Kommentar (valgfritt)</label>
+            <input
+              id="new-adjustment-comment"
+              value={newAdjustment.comment}
+              onChange={(event) =>
+                setNewAdjustment((current) => ({
+                  ...current,
+                  comment: event.target.value
+                }))
+              }
+              maxLength="200"
+              placeholder="F.eks. lunsjsalg"
+            />
+            <button
+              type="submit"
+              className="primaryBtn"
+              disabled={!newAdjustment.amount || Number(newAdjustment.amount) === 0}
+            >
+              Legg til post
+            </button>
+          </form>
+        )}
         {adjustmentLog.length === 0 ? (
           <p className="emptyListText">Ingen manuelle justeringer ennå.</p>
         ) : (

@@ -15,7 +15,7 @@ test('renders budget app', () => {
   const element = screen.getByText(/Sett totalbudsjett:/i);
   expect(element).toBeInTheDocument();
   expect(screen.getByText(/Versjon 1\.3\.6/i)).toBeInTheDocument();
-  expect(screen.getByText(/Local-only mode/i)).toBeInTheDocument();
+  expect(screen.getByText(/Kun lokal lagring/i)).toBeInTheDocument();
   expect(
     Array.from(container.querySelectorAll(".adjust input")).map((input) => input.value)
   ).toEqual(["0", "0", "0", "0"]);
@@ -36,16 +36,19 @@ test("renders cloud status and version beneath the week cards", () => {
 test("places budget actions inline at the top of the budget cards", () => {
   const { container } = render(<App />);
   const toolbar = container.querySelector(".budgetToolbar");
+  const leftGroup = toolbar.querySelector(".budgetToolbarLeft");
+  const rightGroup = toolbar.querySelector(".budgetToolbarRight");
   const weekCards = container.querySelector(".bagCard");
 
   expect(toolbar.nextElementSibling).toBe(weekCards);
-  expect(toolbar.querySelectorAll("button")).toHaveLength(4);
-  expect(toolbar).toContainElement(screen.getByRole("button", { name: "← Angre" }));
-  expect(toolbar).toContainElement(screen.getByRole("button", { name: "Gjenta" }));
-  expect(toolbar).toContainElement(screen.getByRole("button", { name: "Arkiv og arkivering" }));
-  expect(toolbar).toContainElement(screen.getByRole("button", { name: "Start på nytt 🔄" }));
+  expect(leftGroup.querySelectorAll("button")).toHaveLength(3);
+  expect(rightGroup.querySelectorAll("button")).toHaveLength(1);
+  expect(leftGroup).toContainElement(screen.getByRole("button", { name: "← Angre" }));
+  expect(leftGroup).toContainElement(screen.getByRole("button", { name: "Gjenta →" }));
+  expect(leftGroup).toContainElement(screen.getByRole("button", { name: "Arkiv og arkivering" }));
+  expect(rightGroup).toContainElement(screen.getByRole("button", { name: "Start på nytt 🔄" }));
   expect(screen.getByRole("button", { name: "← Angre" })).toBeDisabled();
-  expect(screen.getByRole("button", { name: "Gjenta" })).toBeDisabled();
+  expect(screen.getByRole("button", { name: "Gjenta →" })).toBeDisabled();
 });
 
 test("redo reapplies the last undone purchase", () => {
@@ -60,7 +63,7 @@ test("redo reapplies the last undone purchase", () => {
 
   const { container } = render(<App />);
   const undoButton = screen.getByRole("button", { name: "← Angre" });
-  const redoButton = screen.getByRole("button", { name: "Gjenta" });
+  const redoButton = screen.getByRole("button", { name: "Gjenta →" });
 
   fireEvent.click(screen.getByRole("button", { name: /Registrer kjøp/ }));
   expect(screen.getByText("80 kr")).toBeInTheDocument();
@@ -331,6 +334,43 @@ test("logs a negative adjustment using the selected week and keeps the comment o
   );
 });
 
+test("adds an Inn og Ut entry from its form and supports undo and redo", () => {
+  localStorage.setItem(
+    "budget_weeks",
+    JSON.stringify([
+      { id: 1, budget: 100, current: 50 },
+      { id: 2, budget: 100, current: 40 }
+    ])
+  );
+
+  render(<App />);
+  fireEvent.click(screen.getByRole("button", { name: "Legg til post" }));
+  fireEvent.change(screen.getByLabelText("Uke"), {
+    target: { value: "2" }
+  });
+  fireEvent.change(screen.getByLabelText("Beløp (+ inn, − ut)"), {
+    target: { value: "-15.25" }
+  });
+  fireEvent.change(screen.getByLabelText("Kommentar (valgfritt)"), {
+    target: { value: "Kjøp av kaffe" }
+  });
+  const addPostButtons = screen.getAllByRole("button", { name: "Legg til post" });
+  fireEvent.click(addPostButtons[addPostButtons.length - 1]);
+
+  expect(screen.getByText("-15.25 kr")).toBeInTheDocument();
+  expect(screen.getByText("Kjøp av kaffe")).toBeInTheDocument();
+  expect(screen.getByText("24.75 kr")).toBeInTheDocument();
+  expect(screen.getByRole("button", { name: "← Angre" })).toBeEnabled();
+
+  fireEvent.click(screen.getByRole("button", { name: "← Angre" }));
+  expect(screen.queryByText("-15.25 kr")).not.toBeInTheDocument();
+  expect(screen.getByText("40 kr")).toBeInTheDocument();
+
+  fireEvent.click(screen.getByRole("button", { name: "Gjenta →" }));
+  expect(screen.getByText("-15.25 kr")).toBeInTheDocument();
+  expect(screen.getByText("24.75 kr")).toBeInTheDocument();
+});
+
 test("colors incoming and outgoing adjustment entries green and red", () => {
   const { container } = render(<App />);
   const adjustmentInputs = container.querySelectorAll(".adjust input");
@@ -383,7 +423,7 @@ test("the shared undo and redo buttons restore a removed adjustment", () => {
   expect(screen.getByText("0 kr")).toBeInTheDocument();
   expect(screen.getByText("3 kr")).toBeInTheDocument();
 
-  fireEvent.click(screen.getByRole("button", { name: "Gjenta" }));
+  fireEvent.click(screen.getByRole("button", { name: "Gjenta →" }));
 
   expect(screen.queryByText("-12 kr")).not.toBeInTheDocument();
   expect(screen.getByText("5 kr")).toBeInTheDocument();

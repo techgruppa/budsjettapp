@@ -7,7 +7,8 @@ jest.mock("./supabaseClient", () => ({
       onAuthStateChange: () => ({
         data: { subscription: { unsubscribe: jest.fn() } }
       }),
-      getSession: jest.fn()
+      getSession: jest.fn(),
+      signOut: jest.fn().mockResolvedValue({ error: null })
     },
     from: jest.fn(),
     channel: jest.fn(),
@@ -28,17 +29,18 @@ beforeEach(() => {
   mockedSupabase.channel.mockReset();
 });
 
-test("requires invited users to sign in", async () => {
+test("shows the sign-in screen in Norwegian for invited users", async () => {
   render(<App />);
 
   await waitFor(() => {
-    expect(screen.getByRole("button", { name: "Sign in" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Logg inn" })).toBeInTheDocument();
   });
 
-  expect(screen.getByLabelText("Email")).toBeInTheDocument();
-  expect(screen.getByLabelText("Password")).toBeInTheDocument();
-  expect(screen.getByText(/Accounts are invite-only/i)).toBeInTheDocument();
-  expect(screen.queryByRole("button", { name: /sign up/i })).not.toBeInTheDocument();
+  expect(screen.getByLabelText("E-post")).toBeInTheDocument();
+  expect(screen.getByLabelText("Passord")).toBeInTheDocument();
+  expect(screen.getByText(/Kontoer er kun tilgjengelige via invitasjon/i)).toBeInTheDocument();
+  expect(screen.getByRole("button", { name: "Glemt passordet?" })).toBeInTheDocument();
+  expect(screen.queryByRole("button", { name: /registrer deg/i })).not.toBeInTheDocument();
 });
 
 test("loads, saves, and subscribes only to the signed-in user's budget", async () => {
@@ -88,5 +90,9 @@ test("loads, saves, and subscribes only to the signed-in user's budget", async (
     expect(upsert).toHaveBeenCalledWith(
       expect.objectContaining({ user_id: userId })
     );
+    expect(screen.getByRole("button", { name: "Logg ut" })).toBeInTheDocument();
   });
+
+  expect(screen.getByRole("button", { name: "Logg ut" }).parentElement.parentElement)
+    .toHaveClass("budgetToolbar");
 });

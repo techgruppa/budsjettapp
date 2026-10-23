@@ -43,9 +43,20 @@ h1, h2, h3, h4 {
   grid-column: 1 / -1;
   display: flex;
   flex-wrap: wrap;
-  justify-content: flex-end;
+  justify-content: space-between;
+  align-items: center;
   gap: 10px;
   margin-bottom: -12px;
+}
+
+.budgetToolbarGroup {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.budgetToolbarRight {
+  margin-left: auto;
 }
 
 .budgetToolbar button {
@@ -625,6 +636,44 @@ h3 {
   margin: 0 0 12px;
   color: hsl(215, 90%, 50%);
   text-align: center;
+}
+
+.addAdjustmentEntryBtn {
+  width: 100%;
+  margin: 0 0 12px;
+  background: hsl(195, 100%, 88%);
+}
+
+.addAdjustmentForm {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  margin-bottom: 14px;
+  padding: 12px;
+  background: hsl(195, 100%, 96%);
+  border: 2px solid #1e293b;
+  border-radius: 12px;
+}
+
+.addAdjustmentForm label {
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.addAdjustmentForm input,
+.addAdjustmentForm select {
+  width: 100%;
+  min-width: 0;
+  padding: 7px 9px;
+  border: 2px solid #1e293b;
+  border-radius: 9px;
+  box-sizing: border-box;
+  font: inherit;
+}
+
+.addAdjustmentForm button {
+  margin-top: 4px;
+  padding: 7px 10px;
 }
 
 .adjustmentLogEntries {
