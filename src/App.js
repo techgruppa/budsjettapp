@@ -81,6 +81,16 @@ export default function App() {
   const saveQueueRef = useRef(Promise.resolve());
   const saveRevisionRef = useRef(0);
 
+  const playSound = (sound) => {
+    const audio = new Audio(
+      `${process.env.PUBLIC_URL}/sounds/${sound}.mp3`
+    );
+    audio.volume = 1;
+    audio.play().catch((error) => {
+      console.error(`Could not play the ${sound} sound:`, error);
+    });
+  };
+
   const [totalBudget, setTotalBudget] = useState(() => {
     try {
       const saved = localStorage.getItem("budget_total");
@@ -188,6 +198,10 @@ export default function App() {
   });
   const [archiveManagerOpen, setArchiveManagerOpen] = useState(false);
   const [archiveName, setArchiveName] = useState("");
+  const [archiveDragging, setArchiveDragging] = useState(false);
+  const [archivePosition, setArchivePosition] = useState({ x: 0, y: 0 });
+  const archiveModalRef = useRef(null);
+  const archiveDragRef = useRef(null);
 
   const [adjustValues, setAdjustValues] = useState(() => {
     try {
@@ -207,6 +221,37 @@ export default function App() {
     } catch (e) { }
     return [0, 0, 0, 0];
   });
+
+  useEffect(() => {
+    if (!archiveDragging) return undefined;
+
+    const handleMouseMove = (event) => {
+      const drag = archiveDragRef.current;
+      if (!drag) return;
+
+      const bounds = archiveModalRef.current?.getBoundingClientRect();
+      const maxX = Math.max(0, (window.innerWidth - (bounds?.width || 0)) / 2 - 12);
+      const maxY = Math.max(0, (window.innerHeight - (bounds?.height || 0)) / 2 - 12);
+      const x = drag.x + event.clientX - drag.startX;
+      const y = drag.y + event.clientY - drag.startY;
+
+      setArchivePosition({
+        x: Math.min(maxX, Math.max(-maxX, x)),
+        y: Math.min(maxY, Math.max(-maxY, y))
+      });
+    };
+    const handleMouseUp = () => {
+      archiveDragRef.current = null;
+      setArchiveDragging(false);
+    };
+
+    document.addEventListener("mousemove", handleMouseMove);
+    document.addEventListener("mouseup", handleMouseUp);
+    return () => {
+      document.removeEventListener("mousemove", handleMouseMove);
+      document.removeEventListener("mouseup", handleMouseUp);
+    };
+  }, [archiveDragging]);
 
   const activeBudgetSnapshot = {
     totalBudget,
@@ -709,6 +754,8 @@ export default function App() {
       }
     }
 
+    if (remaining > 0) playSound("buzzer");
+
     setHistory([
       ...history,
       {
@@ -780,6 +827,7 @@ export default function App() {
 
     const remaining = weeks[index].current;
     if (remaining <= 0) return;
+    playSound("applause");
 
     // Lagre til historikk for undo
     setHistory([
@@ -811,6 +859,15 @@ export default function App() {
   const adjustWeek = (index, amount, comment = "") => {
     const roundedAmount = roundCurrency(amount);
     if (!roundedAmount || !weeks[index]) return;
+
+    if (roundedAmount < 0) {
+      const available = roundCurrency(
+        weeks
+          .slice(index)
+          .reduce((balance, week) => balance + week.current, 0)
+      );
+      if (Math.abs(roundedAmount) > available) playSound("buzzer");
+    }
 
     const newWeeks = applyManualAdjustment(weeks, index, roundedAmount);
     const changes = newWeeks.flatMap((week, weekIndex) => {
@@ -973,6 +1030,19 @@ export default function App() {
     setArchives((currentArchives) =>
       currentArchives.filter((archive) => archive.id !== archiveId)
     );
+  };
+
+  const startArchiveDrag = (event) => {
+    if (event.button !== 0 || event.target.closest("button")) return;
+
+    event.preventDefault();
+    archiveDragRef.current = {
+      startX: event.clientX,
+      startY: event.clientY,
+      x: archivePosition.x,
+      y: archivePosition.y
+    };
+    setArchiveDragging(true);
   };
 
   const restoreArchive = (archive) => {
@@ -1556,12 +1626,19 @@ export default function App() {
           }}
         >
           <section
+            ref={archiveModalRef}
             className="archiveModal"
             role="dialog"
             aria-modal="true"
             aria-labelledby="archive-modal-title"
+            style={{
+              transform: `translate(calc(-50% + ${archivePosition.x}px), calc(-50% + ${archivePosition.y}px))`
+            }}
           >
-            <div className="archiveModalHeader">
+            <div
+              className={`archiveModalHeader${archiveDragging ? " isDragging" : ""}`}
+              onMouseDown={startArchiveDrag}
+            >
               <h2 id="archive-modal-title">Arkiv og arkivering</h2>
               <button
                 type="button"

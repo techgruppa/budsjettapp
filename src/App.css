@@ -942,6 +942,9 @@ h3 {
 }
 
 .archiveModal {
+  position: absolute;
+  top: 50%;
+  left: 50%;
   width: min(100%, 560px);
   max-height: min(85vh, 760px);
   overflow-y: auto;
@@ -957,6 +960,12 @@ h3 {
   align-items: center;
   justify-content: space-between;
   gap: 16px;
+  cursor: grab;
+  user-select: none;
+}
+
+.archiveModalHeader.isDragging {
+  cursor: grabbing;
 }
 
 .archiveModalHeader h2 {

@@ -10,6 +10,20 @@ beforeEach(() => {
   localStorage.clear();
 });
 
+const mockAudioPlayback = () => {
+  const play = jest.fn().mockResolvedValue(undefined);
+  const instances = [];
+  const AudioConstructor = jest
+    .spyOn(window, "Audio")
+    .mockImplementation((src) => {
+      const audio = { src, volume: 1, play };
+      instances.push(audio);
+      return audio;
+    });
+
+  return { AudioConstructor, instances, play };
+};
+
 test('renders budget app', () => {
   const { container } = render(<App />);
   const element = screen.getByText(/Sett totalbudsjett:/i);
@@ -80,6 +94,112 @@ test("redo reapplies the last undone purchase", () => {
   expect(redoButton).toBeDisabled();
 });
 
+test("plays the buzzer file when a purchase exceeds the remaining budget", () => {
+  const { AudioConstructor, instances, play } = mockAudioPlayback();
+  localStorage.setItem(
+    "budget_weeks",
+    JSON.stringify([{ id: 1, budget: 100, current: 40 }])
+  );
+  localStorage.setItem(
+    "budget_items",
+    JSON.stringify([{ name: "Storhandel", price: "50" }])
+  );
+
+  render(<App />);
+  fireEvent.click(screen.getByRole("button", { name: /Registrer kjøp/ }));
+
+  expect(AudioConstructor).toHaveBeenCalledWith(
+    expect.stringContaining("/sounds/buzzer.mp3")
+  );
+  expect(instances[0].volume).toBe(1);
+  expect(play).toHaveBeenCalledTimes(1);
+  AudioConstructor.mockRestore();
+});
+
+test("does not play the buzzer when a purchase fits the remaining budget", () => {
+  const { AudioConstructor } = mockAudioPlayback();
+  localStorage.setItem(
+    "budget_weeks",
+    JSON.stringify([{ id: 1, budget: 100, current: 100 }])
+  );
+  localStorage.setItem(
+    "budget_items",
+    JSON.stringify([{ name: "Liten handel", price: "25" }])
+  );
+
+  render(<App />);
+  fireEvent.click(screen.getByRole("button", { name: /Registrer kjøp/ }));
+
+  expect(AudioConstructor).not.toHaveBeenCalled();
+  AudioConstructor.mockRestore();
+});
+
+test("plays the buzzer when a card subtraction exceeds the remaining budget", () => {
+  const { play, AudioConstructor } = mockAudioPlayback();
+  localStorage.setItem(
+    "budget_weeks",
+    JSON.stringify([
+      { id: 1, budget: 100, current: 20 },
+      { id: 2, budget: 100, current: 10 }
+    ])
+  );
+
+  const { container } = render(<App />);
+  const adjustmentInput = container.querySelector(".adjust input");
+  const subtractButton = container.querySelector(".adjust button:first-child");
+  fireEvent.change(adjustmentInput, { target: { value: "40" } });
+  fireEvent.click(subtractButton);
+
+  expect(AudioConstructor).toHaveBeenCalledWith(
+    expect.stringContaining("/sounds/buzzer.mp3")
+  );
+  expect(play).toHaveBeenCalledTimes(1);
+  expect(screen.getAllByText("0 kr")).toHaveLength(2);
+  AudioConstructor.mockRestore();
+});
+
+test("does not play the buzzer when a card subtraction is covered by later weeks", () => {
+  const { AudioConstructor } = mockAudioPlayback();
+  localStorage.setItem(
+    "budget_weeks",
+    JSON.stringify([
+      { id: 1, budget: 100, current: 20 },
+      { id: 2, budget: 100, current: 30 }
+    ])
+  );
+
+  const { container } = render(<App />);
+  const adjustmentInput = container.querySelector(".adjust input");
+  const subtractButton = container.querySelector(".adjust button:first-child");
+  fireEvent.change(adjustmentInput, { target: { value: "40" } });
+  fireEvent.click(subtractButton);
+
+  expect(AudioConstructor).not.toHaveBeenCalled();
+  expect(screen.getByText("0 kr")).toBeInTheDocument();
+  expect(screen.getByText("10 kr")).toBeInTheDocument();
+  AudioConstructor.mockRestore();
+});
+
+test("plays applause when transferring a positive remaining balance", () => {
+  const { AudioConstructor, play } = mockAudioPlayback();
+  localStorage.setItem(
+    "budget_weeks",
+    JSON.stringify([
+      { id: 1, budget: 100, current: 25 },
+      { id: 2, budget: 100, current: 40 }
+    ])
+  );
+
+  render(<App />);
+  fireEvent.click(screen.getByRole("button", { name: /Overfør rest/ }));
+
+  expect(AudioConstructor).toHaveBeenCalledWith(
+    expect.stringContaining("/sounds/applause.mp3")
+  );
+  expect(play).toHaveBeenCalledTimes(1);
+  AudioConstructor.mockRestore();
+});
+
 test("creates a named checkpoint without changing the active budget", () => {
   localStorage.setItem("budget_total", JSON.stringify("8000"));
   localStorage.setItem(
@@ -115,6 +235,28 @@ test("creates a named checkpoint without changing the active budget", () => {
   expect(screen.getByRole("dialog")).toBeInTheDocument();
   expect(screen.getByText("Oktoberbudsjett")).toBeInTheDocument();
   expect(screen.getByText(/1 registrerte kjøp/)).toBeInTheDocument();
+});
+
+test("moves the archive window by dragging its title bar", () => {
+  render(<App />);
+  fireEvent.click(screen.getByRole("button", { name: "Arkiv og arkivering" }));
+
+  const dialog = screen.getByRole("dialog", { name: "Arkiv og arkivering" });
+  const header = dialog.querySelector(".archiveModalHeader");
+  const initialTransform = dialog.style.transform;
+
+  fireEvent.mouseDown(screen.getByRole("heading", { name: "Arkiv og arkivering" }), {
+    button: 0,
+    clientX: 200,
+    clientY: 150
+  });
+  fireEvent.mouseMove(document, { clientX: 260, clientY: 190 });
+
+  expect(dialog.style.transform).not.toBe(initialTransform);
+  expect(header).toHaveClass("isDragging");
+
+  fireEvent.mouseUp(document);
+  expect(header).not.toHaveClass("isDragging");
 });
 
 test("restores an archived budget and archives the active budget first", () => {
