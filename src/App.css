@@ -272,6 +272,19 @@ button:active {
   background-size: 12px 12px, 100% 100%;
 }
 
+.transferSlot {
+  height: 38px;
+  margin-top: 14px;
+}
+
+.transferSlot > span,
+.transferSlot .transferBtn {
+  display: block;
+  width: 100%;
+  height: 100%;
+  box-sizing: border-box;
+}
+
 .bagCard:hover {
   transform: translateY(-6px) scale(1.03);
   box-shadow: 10px 10px 0 #1e293b;
@@ -389,7 +402,6 @@ button:active {
 
 /* OVERFØRINGSKNAPP */
 .transferBtn {
-  margin-top: 14px;
   background: hsl(215, 90%, 50%); /* Temablå */
   color: white;
   font-size: 12px;

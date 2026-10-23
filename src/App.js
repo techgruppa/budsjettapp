@@ -738,6 +738,7 @@ export default function App() {
   // ✅ trekk fra sekker (flyter videre)
   const applyTransaction = () => {
     let remaining = total;
+    let exceededWeeklyBudget = false;
     const newWeeks = weeks.map(w => ({ ...w }));
 
     for (let i = 0; i < newWeeks.length; i++) {
@@ -749,12 +750,13 @@ export default function App() {
         newWeeks[i].current = roundCurrency(newWeeks[i].current - remaining);
         remaining = 0;
       } else {
+        exceededWeeklyBudget = true;
         newWeeks[i].current = 0;
         remaining = roundCurrency(remaining - available);
       }
     }
 
-    if (remaining > 0) playSound("buzzer");
+    if (exceededWeeklyBudget) playSound("buzzer");
 
     setHistory([
       ...history,
@@ -861,11 +863,7 @@ export default function App() {
     if (!roundedAmount || !weeks[index]) return;
 
     if (roundedAmount < 0) {
-      const available = roundCurrency(
-        weeks
-          .slice(index)
-          .reduce((balance, week) => balance + week.current, 0)
-      );
+      const available = roundCurrency(weeks[index].current);
       if (Math.abs(roundedAmount) > available) playSound("buzzer");
     }
 
@@ -1420,14 +1418,18 @@ export default function App() {
                 </button>
               </div>
 
-              {i < weeks.length - 1 && week.current > 0 && (
-                <button
-                  className="transferBtn"
-                  onClick={() => transferToNextWeek(i)}
-                >
-                  Overfør rest ({week.current} kr) →
-                </button>
-              )}
+              <div className="transferSlot">
+                {i < weeks.length - 1 && week.current > 0 ? (
+                  <button
+                    className="transferBtn"
+                    onClick={() => transferToNextWeek(i)}
+                  >
+                    Overfør rest ({week.current} kr) →
+                  </button>
+                ) : (
+                  <span aria-hidden="true" />
+                )}
+              </div>
             </div>
           );
         })}

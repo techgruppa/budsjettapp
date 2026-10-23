@@ -94,7 +94,7 @@ test("redo reapplies the last undone purchase", () => {
   expect(redoButton).toBeDisabled();
 });
 
-test("plays the buzzer file when a purchase exceeds the remaining budget", () => {
+test("plays the buzzer when a purchase exceeds the current week's balance", () => {
   const { AudioConstructor, instances, play } = mockAudioPlayback();
   localStorage.setItem(
     "budget_weeks",
@@ -113,6 +113,31 @@ test("plays the buzzer file when a purchase exceeds the remaining budget", () =>
   );
   expect(instances[0].volume).toBe(1);
   expect(play).toHaveBeenCalledTimes(1);
+  AudioConstructor.mockRestore();
+});
+
+test("plays the buzzer when a purchase spills into a later week's budget", () => {
+  const { AudioConstructor, play } = mockAudioPlayback();
+  localStorage.setItem(
+    "budget_weeks",
+    JSON.stringify([
+      { id: 1, budget: 100, current: 40 },
+      { id: 2, budget: 100, current: 100 }
+    ])
+  );
+  localStorage.setItem(
+    "budget_items",
+    JSON.stringify([{ name: "Ukentlig handel", price: "50" }])
+  );
+
+  render(<App />);
+  fireEvent.click(screen.getByRole("button", { name: /Registrer kjøp/ }));
+
+  expect(AudioConstructor).toHaveBeenCalledWith(
+    expect.stringContaining("/sounds/buzzer.mp3")
+  );
+  expect(play).toHaveBeenCalledTimes(1);
+  expect(screen.getByText("90 kr")).toBeInTheDocument();
   AudioConstructor.mockRestore();
 });
 
@@ -158,12 +183,12 @@ test("plays the buzzer when a card subtraction exceeds the remaining budget", ()
   AudioConstructor.mockRestore();
 });
 
-test("does not play the buzzer when a card subtraction is covered by later weeks", () => {
+test("does not play the buzzer when a card subtraction fits the selected week's balance", () => {
   const { AudioConstructor } = mockAudioPlayback();
   localStorage.setItem(
     "budget_weeks",
     JSON.stringify([
-      { id: 1, budget: 100, current: 20 },
+      { id: 1, budget: 100, current: 50 },
       { id: 2, budget: 100, current: 30 }
     ])
   );
@@ -175,8 +200,8 @@ test("does not play the buzzer when a card subtraction is covered by later weeks
   fireEvent.click(subtractButton);
 
   expect(AudioConstructor).not.toHaveBeenCalled();
-  expect(screen.getByText("0 kr")).toBeInTheDocument();
   expect(screen.getByText("10 kr")).toBeInTheDocument();
+  expect(screen.getByText("30 kr")).toBeInTheDocument();
   AudioConstructor.mockRestore();
 });
 
@@ -338,6 +363,29 @@ test("positions weekdays in the five rows below each week heading", () => {
       Array.from(card.querySelectorAll(".grid-line")).map((line) => line.style.top)
     ).toEqual(["20%", "40%", "60%", "80%"]);
   });
+});
+
+test("keeps the transfer-button space after transferring a week's balance", () => {
+  const { AudioConstructor } = mockAudioPlayback();
+  localStorage.setItem(
+    "budget_weeks",
+    JSON.stringify([
+      { id: 1, budget: 100, current: 20 },
+      { id: 2, budget: 100, current: 50 }
+    ])
+  );
+
+  const { container } = render(<App />);
+  const firstSlot = container.querySelector(".bagCard .transferSlot");
+
+  expect(firstSlot.querySelector(".transferBtn")).toBeInTheDocument();
+  fireEvent.click(screen.getByRole("button", { name: /Overfør rest/ }));
+
+  expect(firstSlot).toBeInTheDocument();
+  expect(firstSlot).toHaveClass("transferSlot");
+  expect(firstSlot.querySelector(".transferBtn")).not.toBeInTheDocument();
+  expect(firstSlot.querySelector("span")).toBeInTheDocument();
+  AudioConstructor.mockRestore();
 });
 
 test("migrates the old manual adjustment default to zero", () => {
@@ -529,6 +577,7 @@ test("colors incoming and outgoing adjustment entries green and red", () => {
 });
 
 test("the shared undo and redo buttons restore a removed adjustment", () => {
+  const { AudioConstructor } = mockAudioPlayback();
   localStorage.setItem(
     "budget_weeks",
     JSON.stringify([
@@ -570,4 +619,5 @@ test("the shared undo and redo buttons restore a removed adjustment", () => {
   expect(screen.queryByText("-12 kr")).not.toBeInTheDocument();
   expect(screen.getByText("5 kr")).toBeInTheDocument();
   expect(screen.getByText("10 kr")).toBeInTheDocument();
+  AudioConstructor.mockRestore();
 });
